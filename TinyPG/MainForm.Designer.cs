@@ -39,6 +39,13 @@
             this.saveAsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.editToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.cutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.copyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.pasteToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripMenuItem2 = new System.Windows.Forms.ToolStripSeparator();
+            this.findToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.findReplaceToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.regexToolToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.outputToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -75,6 +82,9 @@
             this.folderBrowserDialog = new System.Windows.Forms.FolderBrowserDialog();
             this.saveFileDialog = new System.Windows.Forms.SaveFileDialog();
             this.panelOutput = new System.Windows.Forms.Panel();
+            this.panelInput = new System.Windows.Forms.Panel();
+            this.textInput = new System.Windows.Forms.RichTextBox();
+            this.headerEvaluator = new TinyPG.Controls.HeaderLabel();
             this.tabOutput = new TinyPG.Controls.TabControlEx();
             this.tabPage1 = new System.Windows.Forms.TabPage();
             this.textOutput = new System.Windows.Forms.RichTextBox();
@@ -83,23 +93,21 @@
             this.tabPage3 = new System.Windows.Forms.TabPage();
             this.regExControl = new TinyPG.Controls.RegExControl();
             this.headerOutput = new TinyPG.Controls.HeaderLabel();
-            this.panelInput = new System.Windows.Forms.Panel();
-            this.textInput = new System.Windows.Forms.RichTextBox();
-            this.headerEvaluator = new TinyPG.Controls.HeaderLabel();
             this.menuStrip.SuspendLayout();
             this.statusStrip.SuspendLayout();
             this.panelOutput.SuspendLayout();
+            this.panelInput.SuspendLayout();
             this.tabOutput.SuspendLayout();
             this.tabPage1.SuspendLayout();
             this.tabPage2.SuspendLayout();
             this.tabPage3.SuspendLayout();
-            this.panelInput.SuspendLayout();
             this.SuspendLayout();
             // 
             // menuStrip
             // 
             this.menuStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
+            this.editToolStripMenuItem,
             this.viewToolStripMenuItem,
             this.toolsToolStripMenuItem,
             this.helpToolStripMenuItem});
@@ -170,6 +178,57 @@
             this.exitToolStripMenuItem.Size = new System.Drawing.Size(155, 22);
             this.exitToolStripMenuItem.Text = "E&xit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
+            // 
+            // editToolStripMenuItem
+            // 
+            this.editToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.cutToolStripMenuItem,
+            this.copyToolStripMenuItem,
+            this.pasteToolStripMenuItem,
+            this.toolStripMenuItem2,
+            this.findToolStripMenuItem,
+            this.findReplaceToolStripMenuItem});
+            this.editToolStripMenuItem.Name = "editToolStripMenuItem";
+            this.editToolStripMenuItem.Size = new System.Drawing.Size(39, 20);
+            this.editToolStripMenuItem.Text = "&Edit";
+            // 
+            // cutToolStripMenuItem
+            // 
+            this.cutToolStripMenuItem.Name = "cutToolStripMenuItem";
+            this.cutToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.cutToolStripMenuItem.Text = "Cut";
+            this.cutToolStripMenuItem.Click += new System.EventHandler(this.cutToolStripMenuItem_Click);
+            // 
+            // copyToolStripMenuItem
+            // 
+            this.copyToolStripMenuItem.Name = "copyToolStripMenuItem";
+            this.copyToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.copyToolStripMenuItem.Text = "Copy";
+            this.copyToolStripMenuItem.Click += new System.EventHandler(this.copyToolStripMenuItem_Click);
+            // 
+            // pasteToolStripMenuItem
+            // 
+            this.pasteToolStripMenuItem.Name = "pasteToolStripMenuItem";
+            this.pasteToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.pasteToolStripMenuItem.Text = "Paste";
+            this.pasteToolStripMenuItem.Click += new System.EventHandler(this.pasteToolStripMenuItem_Click);
+            // 
+            // toolStripMenuItem2
+            // 
+            this.toolStripMenuItem2.Name = "toolStripMenuItem2";
+            this.toolStripMenuItem2.Size = new System.Drawing.Size(160, 6);
+            // 
+            // findToolStripMenuItem
+            // 
+            this.findToolStripMenuItem.Name = "findToolStripMenuItem";
+            this.findToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.findToolStripMenuItem.Text = "Find...";
+            // 
+            // findReplaceToolStripMenuItem
+            // 
+            this.findReplaceToolStripMenuItem.Name = "findReplaceToolStripMenuItem";
+            this.findReplaceToolStripMenuItem.Size = new System.Drawing.Size(163, 22);
+            this.findReplaceToolStripMenuItem.Text = "Find && Replace...";
             // 
             // viewToolStripMenuItem
             // 
@@ -422,9 +481,10 @@
             this.textEditor.Text = "";
             this.textEditor.WordWrap = false;
             this.textEditor.SelectionChanged += new System.EventHandler(this.textEditor_SelectionChanged);
+            this.textEditor.TextChanged += new System.EventHandler(this.textEditor_TextChanged);
             this.textEditor.Enter += new System.EventHandler(this.textEditor_Enter);
             this.textEditor.Leave += new System.EventHandler(this.textEditor_Leave);
-            this.textEditor.TextChanged += new System.EventHandler(this.textEditor_TextChanged);
+            this.textEditor.MouseUp += new System.Windows.Forms.MouseEventHandler(this.textEditor_MouseUp);
             // 
             // splitterBottom
             // 
@@ -470,6 +530,47 @@
             this.panelOutput.Name = "panelOutput";
             this.panelOutput.Size = new System.Drawing.Size(320, 600);
             this.panelOutput.TabIndex = 8;
+            // 
+            // panelInput
+            // 
+            this.panelInput.Controls.Add(this.textInput);
+            this.panelInput.Controls.Add(this.headerEvaluator);
+            this.panelInput.Dock = System.Windows.Forms.DockStyle.Bottom;
+            this.panelInput.Location = new System.Drawing.Point(0, 446);
+            this.panelInput.Margin = new System.Windows.Forms.Padding(0);
+            this.panelInput.Name = "panelInput";
+            this.panelInput.Size = new System.Drawing.Size(712, 178);
+            this.panelInput.TabIndex = 9;
+            // 
+            // textInput
+            // 
+            this.textInput.AcceptsTab = true;
+            this.textInput.BorderStyle = System.Windows.Forms.BorderStyle.None;
+            this.textInput.DetectUrls = false;
+            this.textInput.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.textInput.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.textInput.HideSelection = false;
+            this.textInput.Location = new System.Drawing.Point(0, 20);
+            this.textInput.Name = "textInput";
+            this.textInput.Size = new System.Drawing.Size(712, 158);
+            this.textInput.TabIndex = 2;
+            this.textInput.Text = "";
+            this.textInput.WordWrap = false;
+            this.textInput.SelectionChanged += new System.EventHandler(this.textInput_SelectionChanged);
+            this.textInput.Enter += new System.EventHandler(this.textInput_Enter);
+            this.textInput.Leave += new System.EventHandler(this.textInput_Leave);
+            // 
+            // headerEvaluator
+            // 
+            this.headerEvaluator.Dock = System.Windows.Forms.DockStyle.Top;
+            this.headerEvaluator.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
+            this.headerEvaluator.ForeColor = System.Drawing.SystemColors.GrayText;
+            this.headerEvaluator.Location = new System.Drawing.Point(0, 0);
+            this.headerEvaluator.Name = "headerEvaluator";
+            this.headerEvaluator.Size = new System.Drawing.Size(712, 20);
+            this.headerEvaluator.TabIndex = 3;
+            this.headerEvaluator.Text = "Expression Evaluator";
+            this.headerEvaluator.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
             // tabOutput
             // 
@@ -565,47 +666,6 @@
             this.headerOutput.Text = "Output";
             this.headerOutput.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
             // 
-            // panelInput
-            // 
-            this.panelInput.Controls.Add(this.textInput);
-            this.panelInput.Controls.Add(this.headerEvaluator);
-            this.panelInput.Dock = System.Windows.Forms.DockStyle.Bottom;
-            this.panelInput.Location = new System.Drawing.Point(0, 446);
-            this.panelInput.Margin = new System.Windows.Forms.Padding(0);
-            this.panelInput.Name = "panelInput";
-            this.panelInput.Size = new System.Drawing.Size(712, 178);
-            this.panelInput.TabIndex = 9;
-            // 
-            // textInput
-            // 
-            this.textInput.AcceptsTab = true;
-            this.textInput.BorderStyle = System.Windows.Forms.BorderStyle.None;
-            this.textInput.DetectUrls = false;
-            this.textInput.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.textInput.Font = new System.Drawing.Font("Consolas", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.textInput.HideSelection = false;
-            this.textInput.Location = new System.Drawing.Point(0, 20);
-            this.textInput.Name = "textInput";
-            this.textInput.Size = new System.Drawing.Size(712, 158);
-            this.textInput.TabIndex = 2;
-            this.textInput.Text = "";
-            this.textInput.WordWrap = false;
-            this.textInput.SelectionChanged += new System.EventHandler(this.textInput_SelectionChanged);
-            this.textInput.Enter += new System.EventHandler(this.textInput_Enter);
-            this.textInput.Leave += new System.EventHandler(this.textInput_Leave);
-            // 
-            // headerEvaluator
-            // 
-            this.headerEvaluator.Dock = System.Windows.Forms.DockStyle.Top;
-            this.headerEvaluator.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
-            this.headerEvaluator.ForeColor = System.Drawing.SystemColors.GrayText;
-            this.headerEvaluator.Location = new System.Drawing.Point(0, 0);
-            this.headerEvaluator.Name = "headerEvaluator";
-            this.headerEvaluator.Size = new System.Drawing.Size(712, 20);
-            this.headerEvaluator.TabIndex = 3;
-            this.headerEvaluator.Text = "Expression Evaluator";
-            this.headerEvaluator.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-            // 
             // MainForm
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
@@ -627,11 +687,11 @@
             this.statusStrip.ResumeLayout(false);
             this.statusStrip.PerformLayout();
             this.panelOutput.ResumeLayout(false);
+            this.panelInput.ResumeLayout(false);
             this.tabOutput.ResumeLayout(false);
             this.tabPage1.ResumeLayout(false);
             this.tabPage2.ResumeLayout(false);
             this.tabPage3.ResumeLayout(false);
-            this.panelInput.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -695,5 +755,12 @@
         private System.Windows.Forms.ToolStripMenuItem theTinyPGGrammarToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem theTinyPGGrammarV10ToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem theTinyPGGrammarHighlighterV12ToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem editToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem cutToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem copyToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem pasteToolStripMenuItem;
+        private System.Windows.Forms.ToolStripSeparator toolStripMenuItem2;
+        private System.Windows.Forms.ToolStripMenuItem findToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem findReplaceToolStripMenuItem;
     }
 }

@@ -10,13 +10,14 @@
     <AppDesignerFolder>Properties</AppDesignerFolder>
     <RootNamespace>TinyPG</RootNamespace>
     <AssemblyName>TinyPG</AssemblyName>
-    <TargetFrameworkVersion>v2.0</TargetFrameworkVersion>
+    <TargetFrameworkVersion>v4.5</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <StartupObject>
     </StartupObject>
     <FileUpgradeFlags>
     </FileUpgradeFlags>
     <OldToolsVersion>3.5</OldToolsVersion>
+    <TargetFrameworkProfile />
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -26,6 +27,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -34,6 +36,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -43,6 +46,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="CodeGenerators\BaseGenerator.cs" />
     <Compile Include="CodeGenerators\CodeGeneratorFactory.cs" />
     <Compile Include="CodeGenerators\ICodeGenerator.cs" />
     <Compile Include="CodeGenerators\CSharp\ParserGenerator.cs" />
@@ -80,6 +84,7 @@
     <Compile Include="Debug\IParser.cs" />
     <Compile Include="Debug\IParseTree.cs" />
     <Compile Include="Debug\IToken.cs" />
+    <Compile Include="GeneratedFilesWriter.cs" />
     <Compile Include="GlobalSuppressions.cs" />
     <Compile Include="Highlighter\Parser.cs" />
     <Compile Include="Highlighter\ParseTree.cs" />
@@ -113,6 +118,7 @@
     <Compile Include="Compiler\Rule.cs" />
     <Compile Include="Compiler\Scanner.cs" />
     <Compile Include="Compiler\Symbol.cs" />
+    <None Include="app.config" />
     <None Include="Examples\BNFGrammar 1.3.tpg">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

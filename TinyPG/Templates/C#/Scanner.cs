@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using System.Xml.Serialization;
 
@@ -37,6 +38,11 @@ namespace <%Namespace%>
             SkipList = new List<TokenType>();
 <%SkipList%>
 <%RegExps%>
+        }
+
+        public void Init(string input)
+        {
+            Init(input, "");
         }
 
         public void Init(string input, string fileName)
@@ -130,9 +136,12 @@ namespace <%Namespace%>
                     tok.Text = Input.Substring(tok.StartPos, len);
                     tok.Type = index;
                 }
-                else if (tok.StartPos < tok.EndPos - 1)
+                else if (tok.StartPos == tok.EndPos)
                 {
-                    tok.Text = Input.Substring(tok.StartPos, 1);
+                    if (tok.StartPos < Input.Length)
+                        tok.Text = Input.Substring(tok.StartPos, 1);
+                    else
+                        tok.Text = "EOF";
                 }
 
                 // Update the line and column count for error reporting.
@@ -163,10 +172,10 @@ namespace <%Namespace%>
                     var match = Patterns[tok.Type].Match(tok.Text);
                     var fileMatch = match.Groups["File"];
                     if (fileMatch.Success)
-                        currentFile = fileMatch.Value;
+                        currentFile = fileMatch.Value.Replace("\\\\", "\\");
                     var lineMatch = match.Groups["Line"];
                     if (lineMatch.Success)
-                        currentline = int.Parse(lineMatch.Value);
+                        currentline = int.Parse(lineMatch.Value, NumberStyles.Integer, CultureInfo.InvariantCulture);
                 }
             }
             while (SkipList.Contains(tok.Type));
