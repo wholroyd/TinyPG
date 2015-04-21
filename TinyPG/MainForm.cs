@@ -20,6 +20,8 @@ using TinyPG.CodeGenerators;
 
 namespace TinyPG
 {
+    using System.Drawing;
+
     public partial class MainForm : Form
     {
         #region member declarations
@@ -819,5 +821,54 @@ namespace TinyPG
         }
         #endregion
 
+        private void textEditor_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right && this.textEditor.SelectedText != "")
+            {   //click event
+                //MessageBox.Show("you got it!");
+                ContextMenu contextMenu = new ContextMenu();
+                MenuItem menuItem = new MenuItem("Cut");
+                menuItem.Click += this.CutAction;
+                contextMenu.MenuItems.Add(menuItem);
+                menuItem = new MenuItem("Copy");
+                menuItem.Click += this.CopyAction;
+                contextMenu.MenuItems.Add(menuItem);
+                menuItem = new MenuItem("Paste");
+                menuItem.Click += this.PasteAction;
+                contextMenu.MenuItems.Add(menuItem);
+
+                this.textEditor.ContextMenu = contextMenu;
+            }
+        }
+
+        void CutAction(object sender, EventArgs e)
+        {
+            this.textEditor.Cut();
+        }
+
+        void CopyAction(object sender, EventArgs e)
+        {
+            this.textEditor.Copy();
+        }
+
+        void PasteAction(object sender, EventArgs e)
+        {
+            this.textEditor.Paste();
+        }
+
+        private void cutToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.CutAction(sender, e);
+        }
+
+        private void copyToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.CopyAction(sender, e);
+        }
+
+        private void pasteToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            this.PasteAction(sender, e);
+        } 
     }
 }
