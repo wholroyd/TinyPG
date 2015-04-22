@@ -7,465 +7,428 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Windows.Forms;
-using System.Text;
-using System.IO;
-using System.Xml;
-using TinyPG.Compiler;
-using TinyPG.Debug;
-using TinyPG.Controls;
-using System.Globalization;
-using TinyPG.CodeGenerators;
 
 namespace TinyPG
 {
-    using System.Drawing;
+    using System;
+    using System.Diagnostics;
+    using System.Globalization;
+    using System.IO;
+    using System.Text;
+    using System.Threading;
+    using System.Windows.Forms;
+    using System.Xml;
+
+    using TinyPG.CodeGenerators;
+    using TinyPG.Compiler;
+    using TinyPG.Controls;
+    using TinyPG.Controls.DockExtender;
+    using TinyPG.Debug;
+    using TinyPG.Highlighter;
+
+    using ParseTree = TinyPG.Compiler.ParseTree;
 
     public partial class MainForm : Form
     {
         #region member declarations
+        // checks the syntax/semantics while editing on a seperate thread
+        private SyntaxChecker _checker;
+
+        // autocomplete popup form
+        private AutoComplete _codecomplete;
+
         // the compiler used to evaluate the input
-        private TinyPG.Compiler.Compiler compiler;
-        Grammar grammar;
+        private Compiler.Compiler _compiler;
+        private AutoComplete _directivecomplete;
+        // manages docking and floating of panels
+        private DockExtender _dockExtender;
 
+        Grammar _grammar;
 
-        // indicates if text/grammar has changed
-        private bool IsDirty;
 
         // the current file the user is editing
-        private string GrammarFile;
-
-        // manages docking and floating of panels
-        private DockExtender DockExtender;
-        // used to make the input pane floating/draggable
-        IFloaty inputFloaty;
-        // used to make the output pane floating/draggable
-        IFloaty outputFloaty;
-
-        // marks erronious text with little waves
-        // this is used in combination with the checker
-        private TextMarker marker;
-        // checks the syntax/semantics while editing on a seperate thread
-        private SyntaxChecker checker;
-
-        // timer that will fire if the changed text requires evaluating
-        private Timer TextChangedTimer;
-
-        // responsible for text highlighting
-        private Highlighter.TextHighlighter textHighlighter;
+        private string _grammarFile;
 
         // scanner to be used by the highlighter, declare here
         // so we can modify the scanner properies at runtime if needed
-        private Highlighter.Scanner highlighterScanner;
+        private Highlighter.Scanner _highlighterScanner;
 
-        // autocomplete popup form
-        private AutoComplete codecomplete;
-        private AutoComplete directivecomplete;
+        // used to make the input pane floating/draggable
+        IFloaty _inputFloaty;
 
+        // indicates if text/grammar has changed
+        private bool _isDirty;
+        // marks erronious text with little waves
+        // this is used in combination with the checker
+        private TextMarker _marker;
+
+        // used to make the output pane floating/draggable
+        IFloaty _outputFloaty;
         // keep this event handler reference in a seperate object, so it can be
         // unregistered on closing. this is required because the checker runs on a seperate thread
-        EventHandler syntaxUpdateChecker;
+        EventHandler _syntaxUpdateChecker;
 
+        // timer that will fire if the changed text requires evaluating
+        private System.Windows.Forms.Timer _textChangedTimer;
+
+        // responsible for text highlighting
+        private TextHighlighter _textHighlighter;
         #endregion
 
         #region Initialization
         public MainForm()
         {
+            this.InitializeComponent();
+            this._isDirty = false;
+            this._compiler = null;
+            this._grammarFile = null;
 
-            InitializeComponent();
-            IsDirty = false;
-            compiler = null;
-            GrammarFile = null;
-
-            this.Disposed += new EventHandler(MainForm_Disposed);
+            this.Disposed += this.MainFormDisposed;
         }
 
-        private void MainForm_Load(object sender, EventArgs e)
+        private void MainFormLoad(object sender, EventArgs e)
         {
-            headerEvaluator.Activate(textInput);
-            headerEvaluator.CloseClick += new EventHandler(headerEvaluator_CloseClick);
-            headerOutput.Activate(tabOutput);
-            headerOutput.CloseClick += new EventHandler(headerOutput_CloseClick);
+            this.headerEvaluator.Activate(this.textInput);
+            this.headerEvaluator.CloseClick += this.HeaderEvaluatorCloseClick;
+            this.headerOutput.Activate(this.tabOutput);
+            this.headerOutput.CloseClick += this.HeaderOutputCloseClick;
 
-            DockExtender = new DockExtender(this);
-            inputFloaty = DockExtender.Attach(panelInput, headerEvaluator, splitterBottom);
-            outputFloaty = DockExtender.Attach(panelOutput, headerOutput, splitterRight);
+            this._dockExtender = new DockExtender(this);
+            this._inputFloaty = this._dockExtender.Attach(this.panelInput, this.headerEvaluator, this.splitterBottom);
+            this._outputFloaty = this._dockExtender.Attach(this.panelOutput, this.headerOutput, this.splitterRight);
 
-            inputFloaty.Docking += new EventHandler(inputFloaty_Docking);
-            outputFloaty.Docking += new EventHandler(inputFloaty_Docking);
-            inputFloaty.Hide();
-            outputFloaty.Hide();
+            this._inputFloaty.Docking += this.InputFloatyDocking;
+            this._outputFloaty.Docking += this.InputFloatyDocking;
+            this._inputFloaty.Hide();
+            this._outputFloaty.Hide();
 
-            textOutput.Text = AssemblyInfo.ProductName + " v" + Application.ProductVersion + "\r\n";
-            textOutput.Text += AssemblyInfo.CopyRightsDetail + "\r\n\r\n";
+            this.textOutput.Text = AssemblyInfo.ProductName + " v" + Application.ProductVersion + "\r\n";
+            this.textOutput.Text += AssemblyInfo.CopyRightsDetail + "\r\n\r\n";
 
 
-            marker = new TextMarker(textEditor);
-            checker = new SyntaxChecker(marker); // run the syntax checker on seperate thread
+            this._marker = new TextMarker(this.textEditor);
+            this._checker = new SyntaxChecker(this._marker); // run the syntax checker on seperate thread
 
             // create the syntax update checker event handler and remember its reference
-            syntaxUpdateChecker = new EventHandler(checker_UpdateSyntax);
-            checker.UpdateSyntax += syntaxUpdateChecker; // listen for events
-            System.Threading.Thread thread = new System.Threading.Thread(checker.Start);
+            this._syntaxUpdateChecker = this.CheckerUpdateSyntax;
+            this._checker.UpdateSyntax += this._syntaxUpdateChecker; // listen for events
+            var thread = new Thread(this._checker.Start);
             thread.Start();
 
-            TextChangedTimer = new Timer();
-            TextChangedTimer.Tick += new EventHandler(TextChangedTimer_Tick);
+            this._textChangedTimer = new System.Windows.Forms.Timer();
+            this._textChangedTimer.Tick += this.TextChangedTimerTick;
 
             // assign the auto completion function to this editor
             // autocomplete form will take care of the rest
-            codecomplete = new AutoComplete(textEditor);
-            codecomplete.Enabled = false;
-            directivecomplete = new AutoComplete(textEditor);
-            directivecomplete.Enabled = false;
-            directivecomplete.WordList.Items.Add("@ParseTree");
-            directivecomplete.WordList.Items.Add("@Parser");
-            directivecomplete.WordList.Items.Add("@Scanner");
-            directivecomplete.WordList.Items.Add("@TextHighlighter");
-            directivecomplete.WordList.Items.Add("@TinyPG");
-            directivecomplete.WordList.Items.Add("Generate");
-            directivecomplete.WordList.Items.Add("Language");
-            directivecomplete.WordList.Items.Add("Namespace");
-            directivecomplete.WordList.Items.Add("OutputPath");
-            directivecomplete.WordList.Items.Add("TemplatePath");
+            this._codecomplete = new AutoComplete(this.textEditor);
+            this._codecomplete.Enabled = false;
+            this._directivecomplete = new AutoComplete(this.textEditor);
+            this._directivecomplete.Enabled = false;
+            this._directivecomplete.WordList.Items.Add("@ParseTree");
+            this._directivecomplete.WordList.Items.Add("@Parser");
+            this._directivecomplete.WordList.Items.Add("@Scanner");
+            this._directivecomplete.WordList.Items.Add("@TextHighlighter");
+            this._directivecomplete.WordList.Items.Add("@TinyPG");
+            this._directivecomplete.WordList.Items.Add("Generate");
+            this._directivecomplete.WordList.Items.Add("Language");
+            this._directivecomplete.WordList.Items.Add("Namespace");
+            this._directivecomplete.WordList.Items.Add("OutputPath");
+            this._directivecomplete.WordList.Items.Add("TemplatePath");
 
             // setup the text highlighter (= text coloring)
-            highlighterScanner = new TinyPG.Highlighter.Scanner();
-            textHighlighter = new TinyPG.Highlighter.TextHighlighter(textEditor, highlighterScanner, new TinyPG.Highlighter.Parser(highlighterScanner));
-            textHighlighter.SwitchContext += new TinyPG.Highlighter.ContextSwitchEventHandler(TextHighlighter_SwitchContext);
+            this._highlighterScanner = new Highlighter.Scanner();
+            this._textHighlighter = new TextHighlighter(this.textEditor, this._highlighterScanner, new Highlighter.Parser(this._highlighterScanner));
+            this._textHighlighter.SwitchContext += this.TextHighlighterSwitchContext;
 
-            LoadConfig();
+            this.LoadConfig();
 
-            if (GrammarFile == null)
-                NewGrammar();
-
+            if (this._grammarFile == null)
+            {
+                this.NewGrammar();
+            }
         }
         #endregion Initialization
 
         #region Control events
-        /// <summary>
-        /// a context switch is raised when the caret of the editor moves from one section to another.
-        /// the sections are defined by the highlighter parser. E.g. if the caret moves from the COMMENTBLOCK to
-        /// a CODEBLOCK token, the contextswitch is raised.
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        void TextHighlighter_SwitchContext(object sender, TinyPG.Highlighter.ContextSwitchEventArgs e)
+        void CheckerUpdateSyntax(object sender, EventArgs e)
         {
-
-            if (e.NewContext.Token.Type == TinyPG.Highlighter.TokenType.DOTNET_COMMENTBLOCK
-                || e.NewContext.Token.Type == TinyPG.Highlighter.TokenType.DOTNET_COMMENTLINE
-                || e.NewContext.Token.Type == TinyPG.Highlighter.TokenType.DOTNET_STRING
-                || e.NewContext.Token.Type == TinyPG.Highlighter.TokenType.GRAMMARSTRING
-                || e.NewContext.Token.Type == TinyPG.Highlighter.TokenType.DIRECTIVESTRING
-                || e.NewContext.Token.Type == TinyPG.Highlighter.TokenType.GRAMMARCOMMENTBLOCK
-                || e.NewContext.Token.Type == TinyPG.Highlighter.TokenType.GRAMMARCOMMENTLINE)
+            if (this.InvokeRequired && !this.IsDisposed)
             {
-                codecomplete.Enabled = false; // disable autocompletion if user is editing in any of these blocks
-                directivecomplete.Enabled = false;
-            }
-            else if (e.NewContext.Parent.Token.Type == TinyPG.Highlighter.TokenType.GrammarBlock)
-            {
-                directivecomplete.Enabled = false;
-                codecomplete.Enabled = true; //allow autocompletion
-            }
-            else if (e.NewContext.Parent.Token.Type == TinyPG.Highlighter.TokenType.DirectiveBlock)
-            {
-                codecomplete.Enabled = false;
-                directivecomplete.Enabled = true; //allow directives autocompletion
-            }
-            else
-            {
-                codecomplete.Enabled = false;
-                directivecomplete.Enabled = false;
-            }
-
-        }
-
-        void checker_UpdateSyntax(object sender, EventArgs e)
-        {
-            if (this.InvokeRequired && !IsDisposed)
-            {
-                this.Invoke(new EventHandler(checker_UpdateSyntax), new object[] { sender, e });
+                this.Invoke(new EventHandler(this.CheckerUpdateSyntax), new object[] { sender, e });
                 return;
             }
-            marker.MarkWords();
 
-            if (checker.Grammar == null) return;
+            this._marker.MarkWords();
 
-            if (codecomplete.Visible)
-                return;
+            if (this._checker.Grammar == null) return;
+            if (this._codecomplete.Visible) return;
 
-            lock (checker.Grammar)
+            lock (this._checker.Grammar)
             {
-                bool startAdded = false;
-                codecomplete.WordList.Items.Clear();
-                foreach (Symbol s in checker.Grammar.Symbols)
+                var startAdded = false;
+                this._codecomplete.WordList.Items.Clear();
+                foreach (var s in this._checker.Grammar.Symbols)
                 {
-                    codecomplete.WordList.Items.Add(s.Name);
+                    this._codecomplete.WordList.Items.Add(s.Name);
                     if (s.Name == "Start")
                         startAdded = true;
                 }
+
                 if (!startAdded)
-                    codecomplete.WordList.Items.Add("Start");
+                {
+                    this._codecomplete.WordList.Items.Add("Start");
+                }
             }
-
         }
 
-        void inputFloaty_Docking(object sender, EventArgs e)
+        void InputFloatyDocking(object sender, EventArgs e)
         {
-            textEditor.BringToFront();
+            this.textEditor.BringToFront();
         }
+
+        /// <summary>
+        /// a context switch is raised when the caret of the editor moves from one section to
+        /// another. the sections are defined by the highlighter parser. E.g. if the caret moves
+        /// from the COMMENTBLOCK to a CODEBLOCK token, the contextswitch is raised.
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        void TextHighlighterSwitchContext(object sender, ContextSwitchEventArgs e)
+        {
+            switch (e.NewContext.Token.Type)
+            {
+                case Highlighter.TokenType.DOTNET_COMMENTBLOCK:
+                case Highlighter.TokenType.DOTNET_COMMENTLINE:
+                case Highlighter.TokenType.DOTNET_STRING:
+                case Highlighter.TokenType.GRAMMARSTRING:
+                case Highlighter.TokenType.DIRECTIVESTRING:
+                case Highlighter.TokenType.GRAMMARCOMMENTBLOCK:
+                case Highlighter.TokenType.GRAMMARCOMMENTLINE:
+                    this._codecomplete.Enabled = false; // disable autocompletion if user is editing in any of these blocks
+                    this._directivecomplete.Enabled = false;
+                    break;
+                default:
+                    switch (e.NewContext.Parent.Token.Type)
+                    {
+                        case Highlighter.TokenType.GrammarBlock:
+                            this._directivecomplete.Enabled = false;
+                            this._codecomplete.Enabled = true; //allow autocompletion
+                            break;
+                        case Highlighter.TokenType.DirectiveBlock:
+                            this._codecomplete.Enabled = false;
+                            this._directivecomplete.Enabled = true; //allow directives autocompletion
+                            break;
+                        default:
+                            this._codecomplete.Enabled = false;
+                            this._directivecomplete.Enabled = false;
+                            break;
+                    }
+                    break;
+            }
+        }
+
         #endregion Control events
 
         #region Form events
-        void MainForm_Disposed(object sender, EventArgs e)
+        private void AboutTinyParserGeneratorToolStripMenuItemClick(object sender, EventArgs e)
         {
-            // unregister event handler.
-            checker.UpdateSyntax -= syntaxUpdateChecker; // listen for events
-
-            checker.Dispose();
-            marker.Dispose();
+            this.AboutTinyPg();
         }
 
-        void headerOutput_CloseClick(object sender, EventArgs e)
+        private void CodeblocksToolStripMenuItemClick(object sender, EventArgs e)
         {
-            outputFloaty.Hide();
+            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\simple expression2.tpg");
         }
 
-        void headerEvaluator_CloseClick(object sender, EventArgs e)
-        {
-            inputFloaty.Hide();
-        }
-
-        private void menuToolsGenerate_Click(object sender, EventArgs e)
-        {
-
-            outputFloaty.Show();
-            tabOutput.SelectedIndex = 0;
-
-            CompileGrammar();
-
-            if (compiler != null && compiler.Errors.Count == 0)
-            {
-                // save the grammar when compilation was successful
-                SaveGrammar(GrammarFile);
-            }
-
-        }
-
-        private void parseToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            inputFloaty.Show();
-            outputFloaty.Show();
-            if (tabOutput.SelectedIndex != 0 && tabOutput.SelectedIndex != 1)
-                tabOutput.SelectedIndex = 0;
-
-            EvaluateExpression();
-        }
-
-
-        private void textEditor_TextChanged(object sender, EventArgs e)
-        {
-            if (textHighlighter.IsHighlighting)
-                return;
-
-            marker.Clear();
-            TextChangedTimer.Stop();
-            TextChangedTimer.Interval = 3000;
-            TextChangedTimer.Start();
-
-            if (!IsDirty)
-            {
-                IsDirty = true;
-                SetFormCaption();
-            }
-
-        }
-
-        void TextChangedTimer_Tick(object sender, EventArgs e)
-        {
-            TextChangedTimer.Stop();
-
-            textEditor.Invalidate();
-            checker.Check(textEditor.Text);
-        }
-
-        private void newToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (IsDirty)
-                SaveGrammarAs();
-
-            NewGrammar();
-        }
-
-
-        private void openToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            string newgrammarfile = OpenGrammar();
-            if (newgrammarfile == null) return;
-
-            if (IsDirty && GrammarFile != null)
-            {
-                DialogResult r = MessageBox.Show(this, "You will lose current changes, continue?", "Lose changes", MessageBoxButtons.OKCancel);
-                if (r == DialogResult.Cancel) return;
-            }
-
-            GrammarFile = newgrammarfile;
-            LoadGrammarFile();
-            SaveConfig();
-        }
-
-        private void saveToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            if (string.IsNullOrEmpty(GrammarFile))
-            {
-                SaveGrammarAs();
-            }
-            else
-            {
-                SaveGrammar(GrammarFile);
-            }
-            SaveConfig();
-        }
-
-        private void saveAsToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            SaveGrammarAs();
-            SaveConfig();
-        }
-
-
-        private void exitToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ExitToolStripMenuItemClick(object sender, EventArgs e)
         {
             this.Close();
             Application.Exit();
         }
 
-        private void tvParsetree_AfterSelect(object sender, TreeViewEventArgs e)
-        {
-            if (e.Node == null)
-                return;
-
-            IParseNode ipn = e.Node.Tag as IParseNode;
-            if (ipn == null) return;
-
-            textInput.Select(ipn.IToken.StartPos, ipn.IToken.EndPos - ipn.IToken.StartPos);
-            textInput.ScrollToCaret();
-        }
-
-        private void expressionEvaluatorToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            inputFloaty.Show();
-            textInput.Focus();
-        }
-
-        private void outputToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            outputFloaty.Show();
-            tabOutput.SelectedIndex = 0;
-        }
-
-        private void parsetreeToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            outputFloaty.Show();
-            tabOutput.SelectedIndex = 1;
-        }
-
-        private void regexToolToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            outputFloaty.Show();
-            tabOutput.SelectedIndex = 2;
-        }
-
-        private void tabOutput_Selected(object sender, TabControlEventArgs e)
-        {
-            headerOutput.Text = e.TabPage.Text;
-        }
-
-        private void textEditor_SelectionChanged(object sender, EventArgs e)
-        {
-            SetStatusbar();
-        }
-
-        private void textInput_SelectionChanged(object sender, EventArgs e)
-        {
-            SetStatusbar();
-        }
-
-        private void textInput_Enter(object sender, EventArgs e)
-        {
-            SetStatusbar();
-        }
-
-        private void textInput_Leave(object sender, EventArgs e)
-        {
-            SetStatusbar();
-        }
-
-        private void textEditor_Enter(object sender, EventArgs e)
-        {
-            SetStatusbar();
-        }
-
-        private void textEditor_Leave(object sender, EventArgs e)
-        {
-            SetStatusbar();
-        }
-
-        private void aboutTinyParserGeneratorToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            AboutTinyPG();
-        }
-
-        private void viewParserToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            ViewFile("Parser");
-        }
-
-        private void viewScannerToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            ViewFile("Scanner");
-        }
-
-        private void viewParseTreeCodeToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            ViewFile("ParseTree");
-        }
-
-        private void expressionEvaluatorToolStripMenuItem1_Click(object sender, EventArgs e)
+        private void ExpressionEvaluatorToolStripMenuItem1Click(object sender, EventArgs e)
         {
             NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\simple expression1.tpg");
         }
 
-        private void codeblocksToolStripMenuItem_Click(object sender, EventArgs e)
+        private void ExpressionEvaluatorToolStripMenuItemClick(object sender, EventArgs e)
         {
-            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\simple expression2.tpg");
+            this._inputFloaty.Show();
+            this.textInput.Focus();
         }
 
-        private void theTinyPGGrammarToolStripMenuItem_Click(object sender, EventArgs e)
+        void HeaderEvaluatorCloseClick(object sender, EventArgs e)
         {
-            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\BNFGrammar v1.1.tpg");
+            this._inputFloaty.Hide();
         }
 
-        private void theTinyPGGrammarV10ToolStripMenuItem_Click(object sender, EventArgs e)
+        void HeaderOutputCloseClick(object sender, EventArgs e)
         {
-            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\BNFGrammar v1.0.tpg");
+            this._outputFloaty.Hide();
         }
 
-        private void theTinyPGGrammarHighlighterV12ToolStripMenuItem_Click(object sender, EventArgs e)
+        void MainFormDisposed(object sender, EventArgs e)
         {
-            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\GrammarHighlighter.tpg");
+            // unregister event handler.
+            this._checker.UpdateSyntax -= this._syntaxUpdateChecker; // listen for events
+
+            this._checker.Dispose();
+            this._marker.Dispose();
+        }
+        private void MenuToolsGenerateClick(object sender, EventArgs e)
+        {
+
+            this._outputFloaty.Show();
+            this.tabOutput.SelectedIndex = 0;
+
+            this.CompileGrammar();
+
+            if (this._compiler != null && this._compiler.Errors.Count == 0)
+            {
+                // save the grammar when compilation was successful
+                this.SaveGrammar(this._grammarFile);
+            }
+
         }
 
-        private void textOutput_LinkClicked(object sender, LinkClickedEventArgs e)
+        private void NewToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            if (this._isDirty) this.SaveGrammarAs();
+
+            this.NewGrammar();
+        }
+
+        private void OpenToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            var newgrammarfile = this.OpenGrammar();
+            if (newgrammarfile == null) return;
+
+            if (this._isDirty && this._grammarFile != null)
+            {
+                var r = MessageBox.Show(this, "You will lose current changes, continue?", "Lose changes", MessageBoxButtons.OKCancel);
+                if (r == DialogResult.Cancel) return;
+            }
+
+            this._grammarFile = newgrammarfile;
+            this.LoadGrammarFile();
+            this.SaveConfig();
+        }
+
+        private void OutputToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this._outputFloaty.Show();
+            this.tabOutput.SelectedIndex = 0;
+        }
+
+        private void ParseToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this._inputFloaty.Show();
+            this._outputFloaty.Show();
+            if (this.tabOutput.SelectedIndex != 0 && this.tabOutput.SelectedIndex != 1) this.tabOutput.SelectedIndex = 0;
+
+            this.EvaluateExpression();
+        }
+
+
+        private void ParsetreeToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this._outputFloaty.Show();
+            this.tabOutput.SelectedIndex = 1;
+        }
+
+        private void RegexToolToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this._outputFloaty.Show();
+            this.tabOutput.SelectedIndex = 2;
+        }
+
+        private void SaveAsToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this.SaveGrammarAs();
+            this.SaveConfig();
+        }
+
+        private void SaveToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            if (string.IsNullOrEmpty(this._grammarFile))
+            {
+                this.SaveGrammarAs();
+            }
+            else
+            {
+                this.SaveGrammar(this._grammarFile);
+            }
+
+            this.SaveConfig();
+        }
+
+        private void TabOutputSelected(object sender, TabControlEventArgs e)
+        {
+            this.headerOutput.Text = e.TabPage.Text;
+        }
+
+        void TextChangedTimerTick(object sender, EventArgs e)
+        {
+            this._textChangedTimer.Stop();
+
+            this.textEditor.Invalidate();
+            this._checker.Check(this.textEditor.Text);
+        }
+
+        private void TextEditorEnter(object sender, EventArgs e)
+        {
+            this.SetStatusbar();
+        }
+
+        private void TextEditorLeave(object sender, EventArgs e)
+        {
+            this.SetStatusbar();
+        }
+
+        private void TextEditorSelectionChanged(object sender, EventArgs e)
+        {
+            this.SetStatusbar();
+        }
+
+        private void TextEditorTextChanged(object sender, EventArgs e)
+        {
+            if (this._textHighlighter.IsHighlighting)
+                return;
+
+            this._marker.Clear();
+            this._textChangedTimer.Stop();
+            this._textChangedTimer.Interval = 3000;
+            this._textChangedTimer.Start();
+
+            if (!this._isDirty)
+            {
+                this._isDirty = true;
+                this.SetFormCaption();
+            }
+
+        }
+        private void TextInputEnter(object sender, EventArgs e)
+        {
+            this.SetStatusbar();
+        }
+
+        private void TextInputLeave(object sender, EventArgs e)
+        {
+            this.SetStatusbar();
+        }
+
+        private void TextInputSelectionChanged(object sender, EventArgs e)
+        {
+            this.SetStatusbar();
+        }
+
+        private void TextOutputLinkClicked(object sender, LinkClickedEventArgs e)
         {
             try
             {
                 if (e.LinkText == "www.codeproject.com")
                 {
-                    System.Diagnostics.Process.Start("http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=2192187");
+                    Process.Start("http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=2192187");
                 }
             }
             catch (Exception ex)
@@ -474,6 +437,46 @@ namespace TinyPG
             }
         }
 
+        private void TheTinyPgGrammarHighlighterV12ToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\GrammarHighlighter.tpg");
+        }
+
+        private void TheTinyPgGrammarToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\BNFGrammar v1.1.tpg");
+        }
+
+        private void TheTinyPgGrammarV10ToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            NotepadViewFile(AppDomain.CurrentDomain.BaseDirectory + @"Examples\BNFGrammar v1.0.tpg");
+        }
+
+        private void TvParsetreeAfterSelect(object sender, TreeViewEventArgs e)
+        {
+            if (e.Node == null)
+                return;
+
+            var ipn = e.Node.Tag as IParseNode;
+            if (ipn == null) return;
+
+            this.textInput.Select(ipn.IToken.StartPos, ipn.IToken.EndPos - ipn.IToken.StartPos);
+            this.textInput.ScrollToCaret();
+        }
+        private void ViewParserToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this.ViewFile("Parser");
+        }
+
+        private void ViewParseTreeCodeToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this.ViewFile("ParseTree");
+        }
+
+        private void ViewScannerToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this.ViewFile("Scanner");
+        }
         #endregion Form events
 
         #region Processing functions
@@ -482,7 +485,7 @@ namespace TinyPG
         {
             try
             {
-                System.Diagnostics.Process.Start("Notepad.exe", filename);
+                Process.Start("Notepad.exe", filename);
             }
             catch (Exception ex)
             {
@@ -490,142 +493,11 @@ namespace TinyPG
             }
         }
 
-        private void ViewFile(string filetype)
+        private void AboutTinyPg()
         {
-            try
-            {
-                if (IsDirty || compiler == null || !compiler.IsCompiled)
-                    CompileGrammar();
+            var about = new StringBuilder();
 
-                if (grammar == null)
-                    return;
-
-                ICodeGenerator generator = CodeGeneratorFactory.CreateGenerator(filetype, grammar.Directives["TinyPG"]["Language"]);
-                string folder = grammar.GetOutputPath() + generator.FileName;
-                System.Diagnostics.Process.Start(folder);
-            }
-            catch (Exception)
-            {
-            }
-        }
-
-        private void EvaluateExpression()
-        {
-            textOutput.Text = "Parsing expression...\r\n";
-            try
-            {
-
-                if (IsDirty || compiler == null || !compiler.IsCompiled)
-                    CompileGrammar();
-
-                if (string.IsNullOrEmpty(GrammarFile))
-                    return;
-
-                // save the grammar when compilation was successful
-                if (compiler != null && compiler.Errors.Count == 0)
-                    SaveGrammar(GrammarFile);
-
-                CompilerResult result = new CompilerResult();
-                if (compiler.IsCompiled)
-                {
-                    result = compiler.Run(textInput.Text, textInput);
-
-                    //textOutput.Text = result.ParseTree.PrintTree();
-                    textOutput.Text += result.Output;
-                    ParseTreeViewer.Populate(tvParsetree, result.ParseTree);
-                }
-            }
-            catch (Exception exc)
-            {
-                textOutput.Text += "An exception occured compiling the assembly: \r\n" + exc.Message + "\r\n" + exc.StackTrace;
-            }
-
-        }
-
-        /// <summary>
-        /// this is where some of the magic happens
-        /// to highlight specific C# code or VB code, the language specific keywords are swapped
-        /// that is, the DOTNET regexps are overwritten by either the c# or VB regexps
-        /// </summary>
-        /// <param name="language"></param>
-        private void SetHighlighterLanguage(string language)
-        {
-            lock (Highlighter.TextHighlighter.treelock)
-            {
-                switch (CodeGeneratorFactory.GetSupportedLanguage(language))
-                {
-                    case SupportedLanguage.VBNet:
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_STRING] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.VB_STRING];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_SYMBOL] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.VB_SYMBOL];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_COMMENTBLOCK] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.VB_COMMENTBLOCK];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_COMMENTLINE] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.VB_COMMENTLINE];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_KEYWORD] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.VB_KEYWORD];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_NONKEYWORD] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.VB_NONKEYWORD];
-                        break;
-                    default:
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_STRING] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.CS_STRING];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_SYMBOL] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.CS_SYMBOL];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_COMMENTBLOCK] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.CS_COMMENTBLOCK];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_COMMENTLINE] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.CS_COMMENTLINE];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_KEYWORD] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.CS_KEYWORD];
-                        highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.DOTNET_NONKEYWORD] = highlighterScanner.Patterns[TinyPG.Highlighter.TokenType.CS_NONKEYWORD];
-                        break;
-                }
-                textHighlighter.HighlightText();
-            }
-
-        }
-
-        private void ManageParseError(ParseTree tree, StringBuilder output)
-        {
-            foreach (ParseError error in tree.Errors)
-                output.AppendLine(string.Format("({0},{1}): {2}", error.Line, error.Column, error.Message));
-
-            output.AppendLine("Semantic errors in grammar found.");
-            textEditor.Select(tree.Errors[0].Position, tree.Errors[0].Length > 0 ? tree.Errors[0].Length : 1);
-        }
-
-        private void CompileGrammar()
-        {
-
-            if (string.IsNullOrEmpty(GrammarFile))
-                SaveGrammarAs();
-
-            if (string.IsNullOrEmpty(GrammarFile))
-                return;
-
-            compiler = new TinyPG.Compiler.Compiler();
-            StringBuilder output = new StringBuilder();
-
-            // clear tree
-            tvParsetree.Nodes.Clear();
-
-            Program prog = new Program(ManageParseError, output);
-            DateTime starttimer = DateTime.Now;
-            grammar = prog.ParseGrammar(textEditor.Text, GrammarFile);
-
-            if (grammar != null)
-            {
-                SetHighlighterLanguage(grammar.Directives["TinyPG"]["Language"]);
-
-                if (prog.BuildCode(grammar, compiler))
-                {
-                    TimeSpan span = DateTime.Now.Subtract(starttimer);
-                    output.AppendLine("Compilation successful in " + span.TotalMilliseconds + "ms.");
-                }
-            }
-
-            textOutput.Text = output.ToString();
-            textOutput.Select(textOutput.Text.Length, 0);
-            textOutput.ScrollToCaret();
-
-        }
-
-        private void AboutTinyPG()
-        {
-            StringBuilder about = new StringBuilder();
-
-            //http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=2192187
+            //// http://www.codeproject.com/script/Articles/MemberArticles.aspx?amid=2192187
 
             about.AppendLine(AssemblyInfo.ProductName + " v" + Application.ProductVersion);
             about.AppendLine(AssemblyInfo.CopyRightsDetail);
@@ -633,141 +505,176 @@ namespace TinyPG
             about.AppendLine("For more information about the author");
             about.AppendLine("or TinyPG visit www.codeproject.com");
 
-            outputFloaty.Show();
-            tabOutput.SelectedIndex = 0;
-            textOutput.Text = about.ToString();
+            this._outputFloaty.Show();
+            this.tabOutput.SelectedIndex = 0;
+            this.textOutput.Text = about.ToString();
 
         }
 
-        private void SetFormCaption()
+        private void CompileGrammar()
         {
-            this.Text = "@TinyPG - a Tiny Parser Generator .Net";
-            if ((GrammarFile == null) || (!File.Exists(GrammarFile)))
-            {
-                if (IsDirty) this.Text += " *";
+
+            if (string.IsNullOrEmpty(this._grammarFile)) this.SaveGrammarAs();
+
+            if (string.IsNullOrEmpty(this._grammarFile))
                 return;
-            }
 
-            string name = new FileInfo(GrammarFile).Name;
-            this.Text += " [" + name + "]";
-            if (IsDirty) this.Text += " *";
-        }
+            this._compiler = new Compiler.Compiler();
+            var output = new StringBuilder();
 
-        private void NewGrammar()
-        {
-            GrammarFile = null;
-            IsDirty = false;
+            // clear tree
+            this.tvParsetree.Nodes.Clear();
 
-            string text = "//" + AssemblyInfo.ProductName + " v" + Application.ProductVersion + "\r\n";
-            text += "//" + AssemblyInfo.CopyRightsDetail + "\r\n\r\n";
-            textEditor.Text = text;
-            textEditor.ClearUndo();
+            var prog = new Program(this.ManageParseError, output);
+            var starttimer = DateTime.Now;
+            this._grammar = prog.ParseGrammar(this.textEditor.Text, this._grammarFile);
 
-            textOutput.Text = AssemblyInfo.ProductName + " v" + Application.ProductVersion + "\r\n";
-            textOutput.Text += AssemblyInfo.CopyRightsDetail + "\r\n\r\n";
-
-            SetFormCaption();
-            SaveConfig();
-
-            textEditor.Select(textEditor.Text.Length, 0);
-
-            IsDirty = false;
-            textHighlighter.ClearUndo();
-            SetFormCaption();
-            SetStatusbar();
-
-        }
-        private void LoadGrammarFile()
-        {
-            if (GrammarFile == null) return;
-            if (!File.Exists(GrammarFile))
+            if (this._grammar != null)
             {
-                GrammarFile = null; // file does not exist anymore
-                return;
+                this.SetHighlighterLanguage(this._grammar.Directives["TinyPG"]["Language"]);
+
+                if (prog.BuildCode(this._grammar, this._compiler))
+                {
+                    var span = DateTime.Now.Subtract(starttimer);
+                    output.AppendLine("Compilation successful in " + span.TotalMilliseconds + "ms.");
+                }
             }
 
-            string folder = new FileInfo(GrammarFile).DirectoryName;
-            Directory.SetCurrentDirectory(folder);
-
-            textEditor.Text = File.ReadAllText(GrammarFile);
-            textEditor.ClearUndo();
-            CompileGrammar();
-            textOutput.Text = "";
-            textEditor.Focus();
-            SetStatusbar();
-            textHighlighter.ClearUndo();
-            IsDirty = false;
-            SetFormCaption();
-            textEditor.Select(0, 0);
-            checker.Check(textEditor.Text);
-
+            this.textOutput.Text = output.ToString();
+            this.textOutput.Select(this.textOutput.Text.Length, 0);
+            this.textOutput.ScrollToCaret();
 
         }
 
-        private void SaveGrammarAs()
+        private void EvaluateExpression()
         {
-            DialogResult r = saveFileDialog.ShowDialog(this);
-            if (r == DialogResult.OK)
+            this.textOutput.Text = "Parsing expression...\r\n";
+            try
             {
-                SaveGrammar(saveFileDialog.FileName);
+
+                if (this._isDirty || this._compiler == null || !this._compiler.IsCompiled) this.CompileGrammar();
+
+                if (string.IsNullOrEmpty(this._grammarFile))
+                    return;
+
+                // save the grammar when compilation was successful
+                if (this._compiler != null && this._compiler.Errors.Count == 0) this.SaveGrammar(this._grammarFile);
+
+                var result = new CompilerResult();
+                if (this._compiler.IsCompiled)
+                {
+                    result = this._compiler.Run(this.textInput.Text, this.textInput);
+
+                    //textOutput.Text = result.ParseTree.PrintTree();
+                    this.textOutput.Text += result.Output;
+                    ParseTreeViewer.Populate(this.tvParsetree, result.ParseTree);
+                }
+            }
+            catch (Exception exc)
+            {
+                this.textOutput.Text += "An exception occured compiling the assembly: \r\n" + exc.Message + "\r\n" + exc.StackTrace;
             }
 
-        }
-
-        private string OpenGrammar()
-        {
-            DialogResult r = openFileDialog.ShowDialog(this);
-            if (r == DialogResult.OK)
-                return openFileDialog.FileName;
-            else
-                return null;
-        }
-
-        private void SaveGrammar(string filename)
-        {
-            if (String.IsNullOrEmpty(filename)) return;
-
-            GrammarFile = filename;
-
-            string folder = new FileInfo(GrammarFile).DirectoryName;
-            Directory.SetCurrentDirectory(folder);
-
-            string text = textEditor.Text.Replace("\n", "\r\n");
-            File.WriteAllText(filename, text);
-            IsDirty = false;
-            SetFormCaption();
         }
 
         private void LoadConfig()
         {
             try
             {
-                string configfile = AppDomain.CurrentDomain.BaseDirectory + "TinyPG.config";
+                var configfile = AppDomain.CurrentDomain.BaseDirectory + "TinyPG.config";
 
                 if (!File.Exists(configfile))
                     return;
 
-                XmlDocument doc = new XmlDocument();
+                var doc = new XmlDocument();
                 doc.Load(configfile);
-                openFileDialog.InitialDirectory = doc["AppSettings"]["OpenFilePath"].Attributes[0].Value;
-                saveFileDialog.InitialDirectory = doc["AppSettings"]["SaveFilePath"].Attributes[0].Value;
-                GrammarFile = doc["AppSettings"]["GrammarFile"].Attributes[0].Value;
+                this.openFileDialog.InitialDirectory = doc["AppSettings"]["OpenFilePath"].Attributes[0].Value;
+                this.saveFileDialog.InitialDirectory = doc["AppSettings"]["SaveFilePath"].Attributes[0].Value;
+                this._grammarFile = doc["AppSettings"]["GrammarFile"].Attributes[0].Value;
 
-                if (string.IsNullOrEmpty(GrammarFile))
-                    NewGrammar();
-                else
-                    LoadGrammarFile();
+                if (string.IsNullOrEmpty(this._grammarFile)) this.NewGrammar();
+                else this.LoadGrammarFile();
             }
             catch (Exception)
             {
             }
         }
 
+        private void LoadGrammarFile()
+        {
+            if (this._grammarFile == null) return;
+            if (!File.Exists(this._grammarFile))
+            {
+                this._grammarFile = null; // file does not exist anymore
+                return;
+            }
+
+            var folder = new FileInfo(this._grammarFile).DirectoryName;
+            Directory.SetCurrentDirectory(folder);
+
+            this.textEditor.Text = File.ReadAllText(this._grammarFile);
+            this.textEditor.ClearUndo();
+            this.CompileGrammar();
+            this.textOutput.Text = "";
+            this.textEditor.Focus();
+            this.SetStatusbar();
+            this._textHighlighter.ClearUndo();
+            this._isDirty = false;
+            this.SetFormCaption();
+            this.textEditor.Select(0, 0);
+            this._checker.Check(this.textEditor.Text);
+
+
+        }
+
+        private void ManageParseError(ParseTree tree, StringBuilder output)
+        {
+            foreach (var error in tree.Errors)
+                output.AppendLine(string.Format("({0},{1}): {2}", error.Line, error.Column, error.Message));
+
+            output.AppendLine("Semantic errors in grammar found.");
+            this.textEditor.Select(tree.Errors[0].Position, tree.Errors[0].Length > 0 ? tree.Errors[0].Length : 1);
+        }
+
+        private void NewGrammar()
+        {
+            this._grammarFile = null;
+            this._isDirty = false;
+
+            var text = "//" + AssemblyInfo.ProductName + " v" + Application.ProductVersion + "\r\n";
+            text += "//" + AssemblyInfo.CopyRightsDetail + "\r\n\r\n";
+            this.textEditor.Text = text;
+            this.textEditor.ClearUndo();
+
+            this.textOutput.Text = AssemblyInfo.ProductName + " v" + Application.ProductVersion + "\r\n";
+            this.textOutput.Text += AssemblyInfo.CopyRightsDetail + "\r\n\r\n";
+
+            this.SetFormCaption();
+            this.SaveConfig();
+
+            this.textEditor.Select(this.textEditor.Text.Length, 0);
+
+            this._isDirty = false;
+            this._textHighlighter.ClearUndo();
+            this.SetFormCaption();
+            this.SetStatusbar();
+
+        }
+
+        private string OpenGrammar()
+        {
+            var r = this.openFileDialog.ShowDialog(this);
+
+            return r == DialogResult.OK 
+                ? this.openFileDialog.FileName 
+                : null;
+        }
+
         private void SaveConfig()
         {
-            string configfile = AppDomain.CurrentDomain.BaseDirectory + "TinyPG.config";
+            var configfile = AppDomain.CurrentDomain.BaseDirectory + "TinyPG.config";
             XmlAttribute attr;
-            XmlDocument doc = new XmlDocument();
+            var doc = new XmlDocument();
             XmlNode settings = doc.CreateElement("AppSettings", "TinyPG");
             doc.AppendChild(settings);
 
@@ -780,54 +687,175 @@ namespace TinyPG
 
             attr = doc.CreateAttribute("Value");
             settings["OpenFilePath"].Attributes.Append(attr);
-            if (File.Exists(openFileDialog.FileName))
-                attr.Value = new FileInfo(openFileDialog.FileName).Directory.FullName;
+            if (File.Exists(this.openFileDialog.FileName))
+                attr.Value = new FileInfo(this.openFileDialog.FileName).Directory.FullName;
 
             attr = doc.CreateAttribute("Value");
             settings["SaveFilePath"].Attributes.Append(attr);
-            if (File.Exists(saveFileDialog.FileName))
-                attr.Value = new FileInfo(saveFileDialog.FileName).Directory.FullName;
+            if (File.Exists(this.saveFileDialog.FileName))
+                attr.Value = new FileInfo(this.saveFileDialog.FileName).Directory.FullName;
 
             attr = doc.CreateAttribute("Value");
-            attr.Value = GrammarFile;
+            attr.Value = this._grammarFile;
             settings["GrammarFile"].Attributes.Append(attr);
 
             doc.Save(configfile);
         }
 
+        private void SaveGrammar(string filename)
+        {
+            if (String.IsNullOrEmpty(filename)) return;
+
+            this._grammarFile = filename;
+
+            var folder = new FileInfo(this._grammarFile).DirectoryName;
+            Directory.SetCurrentDirectory(folder);
+
+            var text = this.textEditor.Text.Replace("\n", "\r\n");
+            File.WriteAllText(filename, text);
+            this._isDirty = false;
+            this.SetFormCaption();
+        }
+
+        private void SaveGrammarAs()
+        {
+            var r = this.saveFileDialog.ShowDialog(this);
+            if (r == DialogResult.OK)
+            {
+                this.SaveGrammar(this.saveFileDialog.FileName);
+            }
+
+        }
+
+        private void SetFormCaption()
+        {
+            this.Text = "@TinyPG - a Tiny Parser Generator .Net";
+            if ((this._grammarFile == null) || (!File.Exists(this._grammarFile)))
+            {
+                if (this._isDirty) this.Text += " *";
+                return;
+            }
+
+            var name = new FileInfo(this._grammarFile).Name;
+            this.Text += " [" + name + "]";
+            if (this._isDirty) this.Text += " *";
+        }
+
+        /// <summary>
+        /// this is where some of the magic happens
+        /// to highlight specific C# code or VB code, the language specific keywords are swapped
+        /// that is, the DOTNET regexps are overwritten by either the c# or VB regexps
+        /// </summary>
+        /// <param name="language"></param>
+        private void SetHighlighterLanguage(string language)
+        {
+            lock (TextHighlighter.treelock)
+            {
+                switch (CodeGeneratorFactory.GetSupportedLanguage(language))
+                {
+                    case SupportedLanguage.VBNet:
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_STRING] = this._highlighterScanner.Patterns[Highlighter.TokenType.VB_STRING];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_SYMBOL] = this._highlighterScanner.Patterns[Highlighter.TokenType.VB_SYMBOL];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_COMMENTBLOCK] = this._highlighterScanner.Patterns[Highlighter.TokenType.VB_COMMENTBLOCK];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_COMMENTLINE] = this._highlighterScanner.Patterns[Highlighter.TokenType.VB_COMMENTLINE];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_KEYWORD] = this._highlighterScanner.Patterns[Highlighter.TokenType.VB_KEYWORD];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_NONKEYWORD] = this._highlighterScanner.Patterns[Highlighter.TokenType.VB_NONKEYWORD];
+                        break;
+                    default:
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_STRING] = this._highlighterScanner.Patterns[Highlighter.TokenType.CS_STRING];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_SYMBOL] = this._highlighterScanner.Patterns[Highlighter.TokenType.CS_SYMBOL];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_COMMENTBLOCK] = this._highlighterScanner.Patterns[Highlighter.TokenType.CS_COMMENTBLOCK];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_COMMENTLINE] = this._highlighterScanner.Patterns[Highlighter.TokenType.CS_COMMENTLINE];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_KEYWORD] = this._highlighterScanner.Patterns[Highlighter.TokenType.CS_KEYWORD];
+                        this._highlighterScanner.Patterns[Highlighter.TokenType.DOTNET_NONKEYWORD] = this._highlighterScanner.Patterns[Highlighter.TokenType.CS_NONKEYWORD];
+                        break;
+                }
+                this._textHighlighter.HighlightText();
+            }
+
+        }
+
         private void SetStatusbar()
         {
-            if (textEditor.Focused)
+            if (this.textEditor.Focused)
             {
-                int pos = textEditor.SelectionStart;
-                statusPos.Text = pos.ToString(CultureInfo.InvariantCulture);
-                statusCol.Text = (pos - textEditor.GetFirstCharIndexOfCurrentLine() + 1).ToString(CultureInfo.InvariantCulture);
-                statusLine.Text = (textEditor.GetLineFromCharIndex(pos) + 1).ToString(CultureInfo.InvariantCulture);
+                var pos = this.textEditor.SelectionStart;
+                this.statusPos.Text = pos.ToString(CultureInfo.InvariantCulture);
+                this.statusCol.Text = (pos - this.textEditor.GetFirstCharIndexOfCurrentLine() + 1).ToString(CultureInfo.InvariantCulture);
+                this.statusLine.Text = (this.textEditor.GetLineFromCharIndex(pos) + 1).ToString(CultureInfo.InvariantCulture);
 
             }
-            else if (textInput.Focused)
+            else if (this.textInput.Focused)
             {
-                int pos = textInput.SelectionStart;
-                statusPos.Text = pos.ToString(CultureInfo.InvariantCulture);
-                statusCol.Text = (pos - textInput.GetFirstCharIndexOfCurrentLine() + 1).ToString(CultureInfo.InvariantCulture);
-                statusLine.Text = (textInput.GetLineFromCharIndex(pos) + 1).ToString(CultureInfo.InvariantCulture);
+                var pos = this.textInput.SelectionStart;
+                this.statusPos.Text = pos.ToString(CultureInfo.InvariantCulture);
+                this.statusCol.Text = (pos - this.textInput.GetFirstCharIndexOfCurrentLine() + 1).ToString(CultureInfo.InvariantCulture);
+                this.statusLine.Text = (this.textInput.GetLineFromCharIndex(pos) + 1).ToString(CultureInfo.InvariantCulture);
             }
             else
             {
-                statusPos.Text = "-";
-                statusCol.Text = "-";
-                statusLine.Text = "-";
+                this.statusPos.Text = "-";
+                this.statusCol.Text = "-";
+                this.statusLine.Text = "-";
+            }
+        }
+
+        private void ViewFile(string filetype)
+        {
+            try
+            {
+                if (this._isDirty || this._compiler == null || !this._compiler.IsCompiled) this.CompileGrammar();
+
+                if (this._grammar == null)
+                    return;
+
+                var generator = CodeGeneratorFactory.CreateGenerator(filetype, this._grammar.Directives["TinyPG"]["Language"]);
+                var folder = this._grammar.GetOutputPath() + generator.FileName;
+                Process.Start(folder);
+            }
+            catch (Exception)
+            {
             }
         }
         #endregion
 
-        private void textEditor_MouseUp(object sender, MouseEventArgs e)
+        void CopyAction(object sender, EventArgs e)
+        {
+            this.textEditor.Copy();
+        }
+
+        private void CopyToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this.CopyAction(sender, e);
+        }
+
+        void CutAction(object sender, EventArgs e)
+        {
+            this.textEditor.Cut();
+        }
+
+        private void CutToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this.CutAction(sender, e);
+        }
+
+        void PasteAction(object sender, EventArgs e)
+        {
+            this.textEditor.Paste();
+        }
+
+        private void PasteToolStripMenuItemClick(object sender, EventArgs e)
+        {
+            this.PasteAction(sender, e);
+        }
+
+        private void TextEditorMouseUp(object sender, MouseEventArgs e)
         {
             if (e.Button == MouseButtons.Right && this.textEditor.SelectedText != "")
             {   //click event
                 //MessageBox.Show("you got it!");
-                ContextMenu contextMenu = new ContextMenu();
-                MenuItem menuItem = new MenuItem("Cut");
+                var contextMenu = new ContextMenu();
+                var menuItem = new MenuItem("Cut");
                 menuItem.Click += this.CutAction;
                 contextMenu.MenuItems.Add(menuItem);
                 menuItem = new MenuItem("Copy");
@@ -841,34 +869,24 @@ namespace TinyPG
             }
         }
 
-        void CutAction(object sender, EventArgs e)
+        private void textOutput_LinkClicked(object sender, LinkClickedEventArgs e)
         {
-            this.textEditor.Cut();
+
         }
 
-        void CopyAction(object sender, EventArgs e)
+        private void tvParsetree_AfterSelect(object sender, TreeViewEventArgs e)
         {
-            this.textEditor.Copy();
+
         }
 
-        void PasteAction(object sender, EventArgs e)
+        private void tabOutput_Selected(object sender, TabControlEventArgs e)
         {
-            this.textEditor.Paste();
+
         }
 
-        private void cutToolStripMenuItem_Click(object sender, EventArgs e)
+        private void numberedRichTextBox1_Click(object sender, EventArgs e)
         {
-            this.CutAction(sender, e);
-        }
 
-        private void copyToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            this.CopyAction(sender, e);
         }
-
-        private void pasteToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            this.PasteAction(sender, e);
-        } 
     }
 }

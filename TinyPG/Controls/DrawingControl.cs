@@ -1,9 +1,9 @@
-﻿using System;
-using System.Runtime.InteropServices;
-using System.Windows.Forms;
-
-namespace TinyPG.Controls
+﻿namespace TinyPG.Controls
 {
+    using System;
+    using System.Runtime.InteropServices;
+    using System.Windows.Forms;
+
     class DrawingControl
     {
         [DllImport("user32.dll")]

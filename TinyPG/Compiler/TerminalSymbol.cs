@@ -7,38 +7,38 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace TinyPG.Compiler
 {
+    using System.Text.RegularExpressions;
+
     public class TerminalSymbol : Symbol
     {
-        public Regex Expression;
-
         public TerminalSymbol()
-            : this("Terminal_" + ++counter, "")
+            : this("Terminal_" + ++Counter, "")
         { }
 
         public TerminalSymbol(string name)
-            : this(name, "")
+            : this(name, string.Empty)
         { }
 
         public TerminalSymbol(string name, string pattern)
         {
-            Name = name;
-            Expression = new Regex(pattern, RegexOptions.Compiled);
+            this.Name = name;
+            this.Expression = new Regex(pattern, RegexOptions.Compiled);
         }
 
         public TerminalSymbol(string name, Regex expression)
         {
-            Name = name;
-            Expression = expression;
+            this.Name = name;
+            this.Expression = expression;
         }
+
+        public Regex Expression { get; private set; }
 
         public override string PrintProduction()
         {
-            return Helper.Outline(Name, 0, " -> " + Expression + ";", 4);
+            return Helper.Outline(this.Name, 0, " -> " + this.Expression + ";", 4);
         }
     }
 }

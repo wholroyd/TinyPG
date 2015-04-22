@@ -1,11 +1,14 @@
 ﻿namespace TinyPG.Controls
 {
+    using System.ComponentModel;
+    using System.Windows.Forms;
+
     partial class RegExControl
     {
         /// <summary> 
         /// Required designer variable.
         /// </summary>
-        private System.ComponentModel.IContainer components = null;
+        private IContainer components = null;
 
         /// <summary> 
         /// Clean up any resources being used.
@@ -197,17 +200,17 @@
 
         #endregion
 
-        private System.Windows.Forms.Splitter Splitter;
-        private System.Windows.Forms.Panel panel2;
-        private System.Windows.Forms.RichTextBox textMatches;
-        private System.Windows.Forms.Label label2;
-        private System.Windows.Forms.CheckBox checkIgnoreCase;
-        private System.Windows.Forms.CheckBox checkMultiline;
-        private System.Windows.Forms.TextBox textExpression;
-        private System.Windows.Forms.RichTextBox textBox;
-        private System.Windows.Forms.Panel panel1;
-        private System.Windows.Forms.Label label1;
-        private System.Windows.Forms.Label statusText;
+        private Splitter Splitter;
+        private Panel panel2;
+        private RichTextBox textMatches;
+        private Label label2;
+        private CheckBox checkIgnoreCase;
+        private CheckBox checkMultiline;
+        private TextBox textExpression;
+        private RichTextBox textBox;
+        private Panel panel1;
+        private Label label1;
+        private Label statusText;
 
     }
 }

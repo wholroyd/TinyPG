@@ -7,14 +7,12 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Text;
-using System.Windows.Forms;
 
-namespace TinyPG.Controls
+namespace TinyPG.Controls.DockExtender
 {
+    using System.ComponentModel;
+    using System.Windows.Forms;
+
     /// <summary>
     /// this is the overlay preview control
     /// </summary>
@@ -22,7 +20,7 @@ namespace TinyPG.Controls
     {
         public Overlay()
         {
-            InitializeComponent();
+            this.InitializeComponent();
         }
 
         // override Dockstate.
@@ -32,7 +30,7 @@ namespace TinyPG.Controls
         /// <summary>
         /// Required designer variable.
         /// </summary>
-        private System.ComponentModel.IContainer components = null;
+        private IContainer components = null;
 
         /// <summary>
         /// Clean up any resources being used.
@@ -40,9 +38,9 @@ namespace TinyPG.Controls
         /// <param name="disposing">true if managed resources should be disposed; otherwise, false.</param>
         protected override void Dispose(bool disposing)
         {
-            if (disposing && (components != null))
+            if (disposing && (this.components != null))
             {
-                components.Dispose();
+                this.components.Dispose();
             }
             base.Dispose(disposing);
         }

@@ -7,13 +7,11 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Reflection;
 
 namespace TinyPG.Controls
 {
+    using System.Reflection;
+
     public class AssemblyInfo
     {
         static string companyName = string.Empty;
@@ -22,7 +20,7 @@ namespace TinyPG.Controls
         {
             get
             {
-                Assembly assembly = System.Reflection.Assembly.GetEntryAssembly();
+                Assembly assembly = Assembly.GetEntryAssembly();
                 if (assembly != null)
                 {
                     object[] customAttributes = assembly.GetCustomAttributes(typeof(AssemblyCompanyAttribute), false);
@@ -44,7 +42,7 @@ namespace TinyPG.Controls
         {
             get
             {
-                Assembly assembly = System.Reflection.Assembly.GetEntryAssembly();
+                Assembly assembly = Assembly.GetEntryAssembly();
                 if (assembly != null)
                 {
                     object[] customAttributes = assembly.GetCustomAttributes(typeof(AssemblyVersionAttribute), false);
@@ -66,7 +64,7 @@ namespace TinyPG.Controls
         {
             get
             {
-                Assembly assembly = System.Reflection.Assembly.GetEntryAssembly();
+                Assembly assembly = Assembly.GetEntryAssembly();
                 if (assembly != null)
                 {
                     object[] customAttributes = assembly.GetCustomAttributes(typeof(AssemblyProductAttribute), false);
@@ -88,7 +86,7 @@ namespace TinyPG.Controls
         {
             get
             {
-                Assembly assembly = System.Reflection.Assembly.GetEntryAssembly();
+                Assembly assembly = Assembly.GetEntryAssembly();
                 if (assembly != null)
                 {
                     object[] customAttributes = assembly.GetCustomAttributes(typeof(AssemblyCopyrightAttribute), false);
@@ -110,7 +108,7 @@ namespace TinyPG.Controls
         {
             get
             {
-                Assembly assembly = System.Reflection.Assembly.GetEntryAssembly();
+                Assembly assembly = Assembly.GetEntryAssembly();
                 if (assembly != null)
                 {
                     object[] customAttributes = assembly.GetCustomAttributes(typeof(AssemblyTitleAttribute), false);
@@ -132,7 +130,7 @@ namespace TinyPG.Controls
         {
             get
             {
-                Assembly assembly = System.Reflection.Assembly.GetEntryAssembly();
+                Assembly assembly = Assembly.GetEntryAssembly();
                 if (assembly != null)
                 {
                     object[] customAttributes = assembly.GetCustomAttributes(typeof(AssemblyDescriptionAttribute), false);

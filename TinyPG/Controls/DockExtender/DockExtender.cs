@@ -7,14 +7,14 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
-using System.Drawing;
-using System.ComponentModel;
 
-namespace TinyPG.Controls
+namespace TinyPG.Controls.DockExtender
 {
+    using System;
+    using System.ComponentModel;
+    using System.Drawing;
+    using System.Windows.Forms;
+
     [ProvideProperty("Dockable", typeof(Panel))]	
 
     public sealed class DockExtender : Component, IExtenderProvider, ISupportInitialize
@@ -31,25 +31,25 @@ namespace TinyPG.Controls
 
         public bool Dockable
         {
-            get { return _dockable; }
-            set { _dockable = value; }
+            get { return this._dockable; }
+            set { this._dockable = value; }
         }
 
         public Floaties Floaties
         {
-            get { return _floaties; } 
+            get { return this._floaties; } 
         }
 
         public DockExtender()
         {
-            _dockHost = null;
-            _floaties = new Floaties();
+            this._dockHost = null;
+            this._floaties = new Floaties();
         }
 
         public DockExtender(Control dockHost)
         {
-            _dockHost = dockHost;
-            _floaties = new Floaties();
+            this._dockHost = dockHost;
+            this._floaties = new Floaties();
         }
 
         /// <summary>
@@ -58,7 +58,7 @@ namespace TinyPG.Controls
         /// <param name="container"></param>
         public void Show(Control container)
         {
-            IFloaty f = _floaties.Find(container);
+            IFloaty f = this._floaties.Find(container);
             if (f != null) f.Show();
         }
 
@@ -69,7 +69,7 @@ namespace TinyPG.Controls
         /// <param name="container"></param>
         public void Hide(Control container)
         {
-            IFloaty f = _floaties.Find(container);
+            IFloaty f = this._floaties.Find(container);
             if (f != null) f.Hide();
         }
 
@@ -80,7 +80,7 @@ namespace TinyPG.Controls
         /// <returns>the floaty that manages the container's behaviour</returns>
         public IFloaty Attach(Control container)
         {
-            return Attach(container, container, null);
+            return this.Attach(container, container, null);
         }
 
         /// <summary>
@@ -91,7 +91,7 @@ namespace TinyPG.Controls
         /// <returns>the floaty that manages the container's behaviour</returns>
         public IFloaty Attach(Control container, Control handle)
         {
-            return Attach(container, handle, null);
+            return this.Attach(container, handle, null);
         }
 
         /// <summary>
@@ -111,12 +111,12 @@ namespace TinyPG.Controls
             DockState _dockState = new DockState();
             _dockState.Container = container;
             _dockState.Handle = handle;
-            _dockState.OrgDockHost = _dockHost;
+            _dockState.OrgDockHost = this._dockHost;
             _dockState.Splitter = splitter;
 
             Floaty floaty = new Floaty(this);
             floaty.Attach(_dockState);
-            _floaties.Add(floaty);
+            this._floaties.Add(floaty);
             return floaty;
         }
 
@@ -124,15 +124,15 @@ namespace TinyPG.Controls
         internal Control FindDockHost(Floaty floaty , Point pt)
         {
             Control c = null;
-            if (FormIsHit(floaty.DockState.OrgDockHost, pt))
+            if (this.FormIsHit(floaty.DockState.OrgDockHost, pt))
                 c = floaty.DockState.OrgDockHost; //assume toplevel control
 
             if (floaty.DockOnHostOnly)
                 return c;
 
-            foreach (Floaty f in Floaties)
+            foreach (Floaty f in this.Floaties)
             {
-                if (f.DockState.Container.Visible && FormIsHit(f.DockState.Container, pt))
+                if (f.DockState.Container.Visible && this.FormIsHit(f.DockState.Container, pt))
                 {
                     // add this line to dissallow docking inside floaties
                     //if (f.Visible) continue;
@@ -177,44 +177,4 @@ namespace TinyPG.Controls
 
         #endregion
     }
-
-    internal struct DockState
-    {
-        /// <summary>
-        /// the docking control (usually a container class, e.g Panel)
-        /// </summary>
-        public Control Container;
-        /// <summary>
-        /// handle of the container that the user can use to select and move the container
-        /// </summary>
-        public Control Handle;
-
-        /// <summary>
-        /// splitter that is attached to this panel for resizing.
-        /// this is optional
-        /// </summary>
-        public Splitter Splitter;
-
-        /// <summary>
-        /// the parent of the container
-        /// </summary>
-        public Control OrgDockingParent;
-
-        /// <summary>
-        /// the base docking host that contains all docking panels
-        /// </summary>
-        public Control OrgDockHost;
-
-        /// <summary>
-        /// the origional docking style, stored in order to reset the state
-        /// </summary>
-        public DockStyle OrgDockStyle;
-
-        /// <summary>
-        /// the origional bounds of the container
-        /// </summary>
-        public Rectangle OrgBounds;
-
-    }
-
 }

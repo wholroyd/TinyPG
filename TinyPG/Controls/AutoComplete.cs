@@ -7,15 +7,19 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Drawing;
-using System.Text;
-using System.Windows.Forms;
-using System.Runtime.InteropServices;
 
 namespace TinyPG.Controls
 {
-    public partial class AutoComplete : Form
+    using System;
+    using System.ComponentModel;
+    using System.Drawing;
+    using System.Runtime.InteropServices;
+    using System.Text;
+    using System.Windows.Forms;
+
+    using TinyPG.Compiler;
+
+    public class AutoComplete : Form
     {
         [DllImport("user32.dll", CharSet = CharSet.Auto)]
         private static extern int SendMessage(IntPtr hWnd, int wMsg, char wParam, IntPtr lParam);
@@ -23,7 +27,7 @@ namespace TinyPG.Controls
         /// <summary>
         /// Required designer variable.
         /// </summary>
-        private System.ComponentModel.IContainer components = null;
+        private IContainer components = null;
 
 
         private const int WM_KEYDOWN = 0x100;
@@ -46,9 +50,9 @@ namespace TinyPG.Controls
         public AutoComplete(RichTextBox editor)
         {
             this.textEditor = editor;
-            this.textEditor.KeyDown += new KeyEventHandler(editor_KeyDown);
-            this.textEditor.KeyUp += new KeyEventHandler(textEditor_KeyUp);
-            this.textEditor.LostFocus += new EventHandler(textEditor_LostFocus);
+            this.textEditor.KeyDown += this.editor_KeyDown;
+            this.textEditor.KeyUp += this.textEditor_KeyUp;
+            this.textEditor.LostFocus += this.textEditor_LostFocus;
 
             InitializeComponent();
         }
@@ -209,39 +213,39 @@ namespace TinyPG.Controls
         /// </summary>
         private void InitializeComponent()
         {
-            this.WordList = new System.Windows.Forms.ListBox();
+            this.WordList = new ListBox();
             this.SuspendLayout();
             // 
             // WordList
             // 
-            this.WordList.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-            this.WordList.Dock = System.Windows.Forms.DockStyle.Fill;
-            this.WordList.Font = new System.Drawing.Font("Segoe UI", 9F);
+            this.WordList.BorderStyle = BorderStyle.FixedSingle;
+            this.WordList.Dock = DockStyle.Fill;
+            this.WordList.Font = new Font("Segoe UI", 9F);
             this.WordList.FormattingEnabled = true;
             this.WordList.ItemHeight = 15;
-            this.WordList.Location = new System.Drawing.Point(0, 0);
+            this.WordList.Location = new Point(0, 0);
             this.WordList.Name = "WordList";
-            this.WordList.Size = new System.Drawing.Size(303, 137);
+            this.WordList.Size = new Size(303, 137);
             this.WordList.Sorted = true;
             this.WordList.TabIndex = 0;
             this.WordList.UseTabStops = false;
-            this.WordList.DoubleClick += new System.EventHandler(this.WordList_DoubleClick);
+            this.WordList.DoubleClick += this.WordList_DoubleClick;
             // 
             // AutoComplete
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(303, 141);
+            this.AutoScaleDimensions = new SizeF(6F, 13F);
+            this.AutoScaleMode = AutoScaleMode.Font;
+            this.ClientSize = new Size(303, 141);
             this.ControlBox = false;
             this.Controls.Add(this.WordList);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.SizableToolWindow;
+            this.FormBorderStyle = FormBorderStyle.SizableToolWindow;
             this.KeyPreview = true;
             this.Name = "AutoComplete";
             this.ShowIcon = false;
             this.ShowInTaskbar = false;
-            this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            this.StartPosition = FormStartPosition.Manual;
             this.TopMost = true;
-            this.KeyUp += new System.Windows.Forms.KeyEventHandler(this.AutoComplete_KeyUp);
+            this.KeyUp += this.AutoComplete_KeyUp;
             this.ResumeLayout(false);
 
         }

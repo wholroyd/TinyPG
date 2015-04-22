@@ -7,22 +7,24 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
+
 using CodeDom = System.CodeDom.Compiler;
-using System.Reflection;
-
-using TinyPG.CodeGenerators;
-using TinyPG.Debug;
-
-using System.Windows.Forms;
-
 
 namespace TinyPG.Compiler
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Linq;
+    using System.Reflection;
+    using System.Threading;
+    using System.Windows.Forms;
+
+    using TinyPG.CodeGenerators;
+    using TinyPG.Debug;
+
     public class Compiler
     {
-        private Grammar Grammar;
+        private Grammar _grammar;
 
         /// <summary>
         /// indicates if the grammar was parsed successfully
@@ -55,29 +57,28 @@ namespace TinyPG.Compiler
         public List<string> Errors { get; set; }
 
         // the resulting compiled assembly
-        private Assembly assembly;
+        private Assembly _assembly;
 
 
         public Compiler()
         {
-            IsCompiled = false;
-            Errors = new List<string>();
+            this.IsCompiled = false;
+            this.Errors = new List<string>();
         }
 
         public void Compile(Grammar grammar)
         {
-            IsParsed = false;
-            IsCompiled = false;
-            Errors = new List<string>();
+            this.IsParsed = false;
+            this.IsCompiled = false;
+            this.Errors = new List<string>();
             if (grammar == null) throw new ArgumentNullException("grammar", "Grammar may not be null");
 
-            Grammar = grammar;
+            this._grammar = grammar;
             grammar.Preprocess();
-            IsParsed = true;
+            this.IsParsed = true;
 
-            BuildCode();
-            if (Errors.Count == 0)
-                IsCompiled = true;
+            this.BuildCode();
+            if (this.Errors.Count == 0) this.IsCompiled = true;
         }
 
         /// <summary>
@@ -85,10 +86,9 @@ namespace TinyPG.Compiler
         /// </summary>
         private void BuildCode()
         {
-            string language = Grammar.Directives["TinyPG"]["Language"];
-            CodeDom.CompilerResults Result;
-            CodeDom.CodeDomProvider provider = CodeGeneratorFactory.CreateCodeDomProvider(language);
-            System.CodeDom.Compiler.CompilerParameters compilerparams = new System.CodeDom.Compiler.CompilerParameters();
+            string language = this._grammar.Directives["TinyPG"]["Language"];
+            var provider = CodeGeneratorFactory.CreateCodeDomProvider(language);
+            var compilerparams = new CodeDom.CompilerParameters();
             compilerparams.GenerateInMemory = true;
             compilerparams.GenerateExecutable = false;
             compilerparams.ReferencedAssemblies.Add("System.dll");
@@ -97,34 +97,36 @@ namespace TinyPG.Compiler
             compilerparams.ReferencedAssemblies.Add("System.Xml.dll");
 
             // reference this assembly to share interfaces (for debugging only)
-
             string tinypgfile = Assembly.GetExecutingAssembly().Location;
             compilerparams.ReferencedAssemblies.Add(tinypgfile);
 
             // generate the code with debug interface enabled
             List<string> sources = new List<string>();
-            ICodeGenerator generator;
-            foreach (Directive d in Grammar.Directives)
+            foreach (Directive d in this._grammar.Directives)
             {
-                generator = CodeGeneratorFactory.CreateGenerator(d.Name, language);
+                var generator = CodeGeneratorFactory.CreateGenerator(d.Name, language);
                 if (generator != null && d.ContainsKey("FileName"))
                     generator.FileName = d["FileName"];
 
                 if (generator != null && d["Generate"].ToLower() == "true")
-                    sources.Add(generator.Generate(Grammar, true));
+                    sources.Add(generator.Generate(this._grammar, true));
             }
 
             if (sources.Count > 0)
             {
-                Result = provider.CompileAssemblyFromSource(compilerparams, sources.ToArray());
+                var result = provider.CompileAssemblyFromSource(compilerparams, sources.ToArray());
 
-                if (Result.Errors.Count > 0)
+                if (result.Errors.Count > 0)
                 {
-                    foreach (CodeDom.CompilerError o in Result.Errors)
-                        Errors.Add(o.ErrorText + " on line " + o.Line.ToString());
+                    foreach (CodeDom.CompilerError o in result.Errors)
+                    {
+                        this.Errors.Add(o.ErrorText + " on line " + o.Line);
+                    }
                 }
                 else
-                    assembly = Result.CompiledAssembly;
+                {
+                    this._assembly = result.CompiledAssembly;
+                }
             }
         }
 
@@ -135,19 +137,19 @@ namespace TinyPG.Compiler
         /// <returns>the output of the parser/compiler</returns>
         public CompilerResult Run(string input)
         {
-            return Run(input, null);
+            return this.Run(input, null);
         }
 
         public CompilerResult Run(string input, RichTextBox textHighlight)
         {
             CompilerResult compilerresult = new CompilerResult();
             string output = null;
-            if (assembly == null) return null;
+            if (this._assembly == null) return null;
 
-            object scannerinstance = assembly.CreateInstance("TinyPG.Debug.Scanner");
+            object scannerinstance = this._assembly.CreateInstance("TinyPG.Debug.Scanner");
             Type scanner = scannerinstance.GetType();
 
-            object parserinstance = (IParser)assembly.CreateInstance("TinyPG.Debug.Parser", true, BindingFlags.CreateInstance, null, new object[] { scannerinstance }, null, null);
+            object parserinstance = (IParser)this._assembly.CreateInstance("TinyPG.Debug.Parser", true, BindingFlags.CreateInstance, null, new[] { scannerinstance }, null, null);
             Type parsertype = parserinstance.GetType();
 
             object treeinstance = parsertype.InvokeMember("Parse", BindingFlags.InvokeMethod, null, parserinstance, new object[] { input, string.Empty });
@@ -161,25 +163,26 @@ namespace TinyPG.Compiler
             if (textHighlight != null && errors.Count == 0)
             {
                 // try highlight the input text
-                object highlighterinstance = assembly.CreateInstance("TinyPG.Debug.TextHighlighter", true, BindingFlags.CreateInstance, null, new object[] { textHighlight, scannerinstance, parserinstance }, null, null);
+                object highlighterinstance = this._assembly.CreateInstance("TinyPG.Debug.TextHighlighter", true, BindingFlags.CreateInstance, null, new[] { textHighlight, scannerinstance, parserinstance }, null, null);
                 if (highlighterinstance != null)
                 {
                     output += "Highlighting input..." + "\r\n";
                     Type highlightertype = highlighterinstance.GetType();
+
                     // highlight the input text only once
                     highlightertype.InvokeMember("HighlightText", BindingFlags.InvokeMethod, null, highlighterinstance, null);
 
                     // let this thread sleep so background thread can highlight the text
-                    System.Threading.Thread.Sleep(20);
+                    Thread.Sleep(20);
 
                     // dispose of the highlighter object
                     highlightertype.InvokeMember("Dispose", BindingFlags.InvokeMethod, null, highlighterinstance, null);
                 }
             }
+
             if (errors.Count > 0)
             {
-                foreach (IParseError err in errors)
-                    output += string.Format("({0},{1}): {2}\r\n", err.Line, err.Column, err.Message);
+                output = errors.Aggregate(output, (current, err) => current + string.Format("({0},{1}): {2}\r\n", err.Line, err.Column, err.Message));
             }
             else
             {
@@ -198,9 +201,10 @@ namespace TinyPG.Compiler
                     output += "\r\nException occurred: " + exc.Message;
                     output += "\r\nStacktrace: " + exc.StackTrace;
                 }
-
             }
-            compilerresult.Output = output.ToString();
+
+            compilerresult.Output = output;
+
             return compilerresult;
         }
     }

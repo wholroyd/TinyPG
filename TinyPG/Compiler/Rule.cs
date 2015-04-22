@@ -7,98 +7,64 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Text.RegularExpressions;
 
 namespace TinyPG.Compiler
 {
-    #region RuleType
-    public enum RuleType
-    {
-        //Production = 0, // production rule
-        /// <summary>
-        /// represents a terminal symbol
-        /// </summary>
-        Terminal = 1,
-        /// <summary>
-        /// represents a non terminal symbol
-        /// </summary>
-        NonTerminal = 2,
-        /// <summary>
-        /// represents the | symbol, choose between one or the other symbol or subrule (OR)
-        /// </summary>
-        Choice = 3, // |
-        /// <summary>
-        /// puts two symbols or subrules in sequental order (AND)
-        /// </summary>
-        Concat = 4, // <whitespace>
-        /// <summary>
-        /// represents the ? symbol
-        /// </summary>
-        Option = 5, // ?
-        /// <summary>
-        /// represents the * symbol
-        /// </summary>
-        ZeroOrMore = 6, // *
-        /// <summary>
-        /// represents the + symbol
-        /// </summary>
-        OneOrMore = 7 // +
-    }
-    #endregion RuleType
+    using System;
+    using System.Linq;
 
-    public class Rules : List<Rule>
-    {
-    }
+    #region RuleType
+
+    #endregion RuleType
 
     public class Rule
     {
-        public Symbol Symbol;
-        public Rules Rules;
-        public RuleType Type;
-
         public Rule()
             : this(null, RuleType.Choice)
         {
         }
-        
-        public Rule(Symbol s) : this(s, s is TerminalSymbol ? RuleType.Terminal : RuleType.NonTerminal)
+
+        public Rule(Symbol s)
+            : this(s, s is TerminalSymbol ? RuleType.Terminal : RuleType.NonTerminal)
         {
         }
-        
-        public Rule(RuleType type) : this(null, type)
+
+        public Rule(RuleType type)
+            : this(null, type)
         {
         }
-        
+
         public Rule(Symbol s, RuleType type)
         {
-            Type = type; 
-            Symbol = s;
-            Rules = new Rules();
-        }
-        public Symbols GetFirstTerminals()
-        {
-            Symbols visited = new Symbols();
-            Symbols FirstTerminals = new Symbols();
-            DetermineFirstTerminals(FirstTerminals);
-            return FirstTerminals;
+            this.Type = type;
+            this.Symbol = s;
+            this.Rules = new Rules();
         }
 
+        public Rules Rules { get; private set; }
 
+        public Symbol Symbol { get; private set; }
+        public RuleType Type { get; private set; }
         public void DetermineProductionSymbols(Symbols symbols)
         {
-            if (Type == RuleType.Terminal || Type == RuleType.NonTerminal)
+            if (this.Type == RuleType.Terminal || this.Type == RuleType.NonTerminal)
             {
-                symbols.Add(Symbol);
+                symbols.Add(this.Symbol);
             }
             else
             {
-                foreach (Rule rule in Rules)
+                foreach (var rule in this.Rules)
+                {
                     rule.DetermineProductionSymbols(symbols);
+                }
             }
+        }
 
+        public Symbols GetFirstTerminals()
+        {
+            var firstTerminals = new Symbols();
+            this.DetermineFirstTerminals(firstTerminals);
+            return firstTerminals;
         }
 
         /*
@@ -136,60 +102,122 @@ namespace TinyPG.Compiler
         }
         */
 
-        internal bool DetermineFirstTerminals(Symbols FirstTerminals)
+        public string PrintRule()
         {
-            return DetermineFirstTerminals(FirstTerminals, 0);
+            var r = "";
+
+            switch (this.Type)
+            {
+                case RuleType.Terminal:
+                case RuleType.NonTerminal:
+                    if (this.Symbol != null)
+                        r = this.Symbol.Name;
+                    break;
+                case RuleType.Concat:
+                    foreach (var rule in this.Rules)
+                    {
+                        // continue recursively parsing all subrules
+                        r += rule.PrintRule() + " ";
+                    }
+                    if (this.Rules.Count < 1)
+                        r += " <- WARNING: ConcatRule contains no subrules";
+                    break;
+                case RuleType.Choice:
+                    r += "(";
+                    foreach (var rule in this.Rules)
+                    {
+                        if (r.Length > 1)
+                            r += " | ";
+                        // continue recursively parsing all subrules
+                        r += rule.PrintRule();
+                    }
+                    r += ")";
+                    if (this.Rules.Count < 1)
+                        r += " <- WARNING: ChoiceRule contains no subrules";
+                    break;
+                case RuleType.ZeroOrMore:
+                    if (this.Rules.Count >= 1)
+                        r += "(" + this.Rules[0].PrintRule() + ")*";
+                    if (this.Rules.Count > 1)
+                        r += " <- WARNING: ZeroOrMoreRule contains more than 1 subrule";
+                    if (this.Rules.Count < 1)
+                        r += " <- WARNING: ZeroOrMoreRule contains no subrule";
+                    break;
+                case RuleType.OneOrMore:
+                    if (this.Rules.Count >= 1)
+                        r += "(" + this.Rules[0].PrintRule() + ")+";
+                    if (this.Rules.Count > 1)
+                        r += " <- WARNING: OneOrMoreRule contains more than 1 subrule";
+                    if (this.Rules.Count < 1)
+                        r += " <- WARNING: OneOrMoreRule contains no subrule";
+                    break;
+                case RuleType.Option:
+                    if (this.Rules.Count >= 1)
+                        r += "(" + this.Rules[0].PrintRule() + ")?";
+                    if (this.Rules.Count > 1)
+                        r += " <- WARNING: OptionRule contains more than 1 subrule";
+                    if (this.Rules.Count < 1)
+                        r += " <- WARNING: OptionRule contains no subrule";
+
+                    break;
+                default:
+                    r = this.Symbol.Name;
+                    break;
+            }
+            return r;
         }
 
-        internal bool DetermineFirstTerminals(Symbols FirstTerminals, int index)
+        internal bool DetermineFirstTerminals(Symbols firstTerminals)
+        {
+            return this.DetermineFirstTerminals(firstTerminals, 0);
+        }
+
+        internal bool DetermineFirstTerminals(Symbols firstTerminals, int index)
         {
 
             // indicates if Nonterminal can evaluate to an empty terminal (e.g. in case T -> a? or T -> a*)
             // in which case the parent rule should continue scanning after this nonterminal for Firsts.
-            bool containsEmpty = false; // assume terminal is found
-            switch (Type)
+            var containsEmpty = false; // assume terminal is found
+            switch (this.Type)
             {
                 case RuleType.Terminal:
-                    if (Symbol == null)
+                    if (this.Symbol == null)
                         return true;
 
-                        if (!FirstTerminals.Exists(Symbol))
-                        FirstTerminals.Add(Symbol);
-                    else
-                        Console.WriteLine("throw new Exception(\"Terminal already exists\");");
+                        if (!firstTerminals.Exists(this.Symbol))
+                        firstTerminals.Add(this.Symbol);
+                    //else
+                    //    Console.WriteLine("throw new Exception(\"Terminal already exists\");");
                     break;
                 case RuleType.NonTerminal:
-                    if (Symbol == null)
+                    if (this.Symbol == null)
                         return true;
                     
-                    NonTerminalSymbol nts = Symbol as NonTerminalSymbol;                    
+                    var nts = this.Symbol as NonTerminalSymbol;                    
                     containsEmpty = nts.DetermineFirstTerminals();
 
                     // add first symbols of the nonterminal if not already added
                     foreach (TerminalSymbol t in nts.FirstTerminals)
                     {
-                        if (!FirstTerminals.Exists(t))
-                            FirstTerminals.Add(t);
-                        else
-                            Console.WriteLine("throw new Exception(\"Terminal already exists\");");
+                        if (!firstTerminals.Exists(t))
+                            firstTerminals.Add(t);
+                        //else
+                        //    Console.WriteLine("throw new Exception(\"Terminal already exists\");");
                     }
                     break;
                 case RuleType.Choice:
                     {
                         // all subrules must be evaluated to determine if they contain first terminals
                         // if any subrule contains an empty, then this rule also contains an empty
-                        foreach (Rule r in Rules)
-                        {
-                            containsEmpty |= r.DetermineFirstTerminals(FirstTerminals);
-                        }
+                        containsEmpty = this.Rules.Aggregate(containsEmpty, (current, r) => current | r.DetermineFirstTerminals(firstTerminals));
                         break;
                     }
                 case RuleType.OneOrMore:
                     {
                         // if a non-empty subrule was found, then stop further parsing.
-                        foreach (Rule r in Rules)
+                        foreach (var r in this.Rules)
                         {
-                            containsEmpty = r.DetermineFirstTerminals(FirstTerminals);
+                            containsEmpty = r.DetermineFirstTerminals(firstTerminals);
                             if (!containsEmpty) // found the final set of first terminals
                                 break;
                         }
@@ -200,15 +228,15 @@ namespace TinyPG.Compiler
                         // if a non-empty subrule was found, then stop further parsing.
                         // start scanning from Index
 
-                        for (int i = index; i < Rules.Count; i++)
+                        for (var i = index; i < this.Rules.Count; i++)
                         {
-                            containsEmpty = Rules[i].DetermineFirstTerminals(FirstTerminals);
+                            containsEmpty = this.Rules[i].DetermineFirstTerminals(firstTerminals);
                             if (!containsEmpty) // found the final set of first terminals
                                 break;
                         }
 
                         // assign this concat rule to each terminal
-                        foreach (TerminalSymbol t in FirstTerminals)
+                        foreach (var t in firstTerminals)
                             t.Rule = this;
 
                         break;
@@ -217,86 +245,16 @@ namespace TinyPG.Compiler
                 case RuleType.ZeroOrMore:
                     {
                         // empty due to the nature of this rule (A? or A* can always be empty)
-                        containsEmpty = true;
+                        containsEmpty = this.Rules.Aggregate(true, (current, r) => current | r.DetermineFirstTerminals(firstTerminals));
                         
                         // if a non-empty subrule was found, then stop further parsing.
-                        foreach (Rule r in Rules)
-                        {
-                            containsEmpty |= r.DetermineFirstTerminals(FirstTerminals);
-                            if (!containsEmpty) // found the final set of first terminals
-                                break;
-                        }
                         break;
                     }
                 default:
                     throw new NotImplementedException();
             }
+
             return containsEmpty;
-        }
-
-        public string PrintRule()
-        {
-            string r = "";
-
-            switch (Type)
-            {
-                case RuleType.Terminal:
-                case RuleType.NonTerminal:
-                    if (Symbol != null)
-                        r = Symbol.Name;
-                    break;
-                case RuleType.Concat:
-                    foreach (Rule rule in Rules)
-                    {
-                        // continue recursively parsing all subrules
-                        r += rule.PrintRule() + " ";
-                    }
-                    if (Rules.Count < 1)
-                        r += " <- WARNING: ConcatRule contains no subrules";
-                    break;
-                case RuleType.Choice:
-                    r += "(";
-                    foreach (Rule rule in Rules)
-                    {
-                        if (r.Length > 1)
-                            r += " | ";
-                        // continue recursively parsing all subrules
-                        r += rule.PrintRule();
-                    }
-                    r += ")";
-                    if (Rules.Count < 1)
-                        r += " <- WARNING: ChoiceRule contains no subrules";
-                    break;
-                case RuleType.ZeroOrMore:
-                    if (Rules.Count >= 1)
-                        r += "(" + Rules[0].PrintRule() + ")*";
-                    if (Rules.Count > 1)
-                        r += " <- WARNING: ZeroOrMoreRule contains more than 1 subrule";
-                    if (Rules.Count < 1)
-                        r += " <- WARNING: ZeroOrMoreRule contains no subrule";
-                    break;
-                case RuleType.OneOrMore:
-                    if (Rules.Count >= 1)
-                        r += "(" + Rules[0].PrintRule() + ")+";
-                    if (Rules.Count > 1)
-                        r += " <- WARNING: OneOrMoreRule contains more than 1 subrule";
-                    if (Rules.Count < 1)
-                        r += " <- WARNING: OneOrMoreRule contains no subrule";
-                    break;
-                case RuleType.Option:
-                    if (Rules.Count >= 1)
-                        r += "(" + Rules[0].PrintRule() + ")?";
-                    if (Rules.Count > 1)
-                        r += " <- WARNING: OptionRule contains more than 1 subrule";
-                    if (Rules.Count < 1)
-                        r += " <- WARNING: OptionRule contains no subrule";
-
-                    break;
-                default:
-                    r = Symbol.Name;
-                    break;
-            }
-            return r;
         }
     }
 }

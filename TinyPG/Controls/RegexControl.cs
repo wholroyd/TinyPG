@@ -7,17 +7,15 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
-using System.Text;
-using System.Windows.Forms;
-using System.Text.RegularExpressions;
 
 namespace TinyPG.Controls
 {
+    using System;
+    using System.Drawing;
+    using System.Text;
+    using System.Text.RegularExpressions;
+    using System.Windows.Forms;
+
     public partial class RegExControl : UserControl
     {
         public RegExControl()

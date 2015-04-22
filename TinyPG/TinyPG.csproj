@@ -53,13 +53,26 @@
     <Compile Include="CodeGenerators\CSharp\ParseTreeGenerator.cs" />
     <Compile Include="CodeGenerators\CSharp\ScannerGenerator.cs" />
     <Compile Include="CodeGenerators\CSharp\TextHighlighterGenerator.cs" />
+    <Compile Include="CodeGenerators\SupportedLanguage.cs" />
     <Compile Include="CodeGenerators\VBNet\ParserGenerator.cs" />
     <Compile Include="CodeGenerators\VBNet\ParseTreeGenerator.cs" />
     <Compile Include="CodeGenerators\VBNet\ScannerGenerator.cs" />
     <Compile Include="CodeGenerators\VBNet\TextHighlighterGenerator.cs" />
     <Compile Include="Compiler\Compiler.cs" />
     <Compile Include="Compiler\CompilerResult.cs" />
+    <Compile Include="Compiler\Directive.cs" />
+    <Compile Include="Compiler\Directives.cs" />
+    <Compile Include="Compiler\GrammarNode.cs" />
     <Compile Include="Compiler\Helper.cs" />
+    <Compile Include="Compiler\ParseError.cs" />
+    <Compile Include="Compiler\ParseErrors.cs" />
+    <Compile Include="Compiler\ParseNode.cs" />
+    <Compile Include="Compiler\Rules.cs" />
+    <Compile Include="Compiler\RuleType.cs" />
+    <Compile Include="Compiler\SymbolAttributes.cs" />
+    <Compile Include="Compiler\Symbols.cs" />
+    <Compile Include="Compiler\Token.cs" />
+    <Compile Include="Compiler\TokenType.cs" />
     <Compile Include="Controls\AssemblyInfo.cs" />
     <Compile Include="Controls\AutoComplete.cs">
       <SubType>Form</SubType>
@@ -67,29 +80,41 @@
     <Compile Include="Controls\DockExtender\DockExtender.cs">
       <SubType>Component</SubType>
     </Compile>
+    <Compile Include="Controls\DockExtender\DockState.cs" />
+    <Compile Include="Controls\DockExtender\Floaties.cs" />
     <Compile Include="Controls\DockExtender\Floaty.cs">
       <SubType>Form</SubType>
     </Compile>
+    <Compile Include="Controls\DockExtender\IFloaty.cs" />
     <Compile Include="Controls\DockExtender\Overlay.cs">
       <SubType>Form</SubType>
     </Compile>
     <Compile Include="Controls\DrawingControl.cs" />
-    <Compile Include="Controls\HeaderExtender.cs">
+    <Compile Include="Controls\HeaderLabel.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Controls\TabControlEx.cs">
       <SubType>Component</SubType>
     </Compile>
     <Compile Include="Controls\TextMarker.cs" />
+    <Compile Include="Debug\IParseError.cs" />
+    <Compile Include="Debug\IParseNode.cs" />
     <Compile Include="Debug\IParser.cs" />
     <Compile Include="Debug\IParseTree.cs" />
     <Compile Include="Debug\IToken.cs" />
     <Compile Include="GeneratedFilesWriter.cs" />
     <Compile Include="GlobalSuppressions.cs" />
+    <Compile Include="Highlighter\ContextSwitchEventArgs.cs" />
+    <Compile Include="Highlighter\ContextSwitchEventHandler.cs" />
+    <Compile Include="Highlighter\ParseError.cs" />
+    <Compile Include="Highlighter\ParseErrors.cs" />
+    <Compile Include="Highlighter\ParseNode.cs" />
     <Compile Include="Highlighter\Parser.cs" />
     <Compile Include="Highlighter\ParseTree.cs" />
     <Compile Include="Highlighter\Scanner.cs" />
     <Compile Include="Highlighter\TextHighlighter.cs" />
+    <Compile Include="Highlighter\Token.cs" />
+    <Compile Include="Highlighter\TokenType.cs" />
     <Compile Include="ParseTreeViewer.cs" />
     <Compile Include="Properties\Resources.Designer.cs">
       <AutoGen>True</AutoGen>

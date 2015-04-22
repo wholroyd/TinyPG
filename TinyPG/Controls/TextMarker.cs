@@ -7,14 +7,15 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 
 namespace TinyPG.Controls
 {
+    using System;
+    using System.Collections.Generic;
+    using System.Drawing;
+    using System.Drawing.Drawing2D;
+    using System.Windows.Forms;
+
     /// <summary>
     /// the text marker is responsible for underlining erronious text (= marked words) with a wavy line
     /// the text marker also handles the display of the tooltip
@@ -37,7 +38,7 @@ namespace TinyPG.Controls
         public TextMarker(RichTextBox textbox)
         {
             Textbox = textbox;
-            Textbox.MouseMove += new MouseEventHandler(Textbox_MouseMove);
+            Textbox.MouseMove += this.Textbox_MouseMove;
             this.AssignHandle(Textbox.Handle);
             ToolTip = new ToolTip();
             Clear();
@@ -60,14 +61,14 @@ namespace TinyPG.Controls
                     Point p = Textbox.GetPositionFromCharIndex(w.Start);
                     p.Y += 18;
 
-                    ToolTip.Show(w.ToolTip, (IWin32Window)Textbox, p);
+                    ToolTip.Show(w.ToolTip, this.Textbox, p);
                     found = true;
                 }
             }
 
             if (!found) 
             {
-                ToolTip.Hide((IWin32Window)Textbox);
+                ToolTip.Hide(this.Textbox);
             }
         }
 

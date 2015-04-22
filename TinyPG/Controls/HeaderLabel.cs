@@ -7,13 +7,14 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Windows.Forms;
-using System.Drawing;
-using System.Drawing.Drawing2D;
 
 namespace TinyPG.Controls
 {
+    using System;
+    using System.Drawing;
+    using System.Drawing.Drawing2D;
+    using System.Windows.Forms;
+
     class HeaderLabel : Label
     {
         private bool HasFocus;
@@ -111,9 +112,9 @@ namespace TinyPG.Controls
         /// <param name="control"></param>
         public void ActivatedBy(Control control)
         {
-            control.GotFocus += new EventHandler(control_GotFocus);
-            control.MouseDown += new MouseEventHandler(control_MouseDown);
-            control.LostFocus += new EventHandler(control_LostFocus);
+            control.GotFocus += this.control_GotFocus;
+            control.MouseDown += this.control_MouseDown;
+            control.LostFocus += this.control_LostFocus;
         }
 
         /// <summary>
@@ -122,7 +123,7 @@ namespace TinyPG.Controls
         /// <param name="control"></param>
         public void DeactivatedBy(Control control)
         {
-            control.GotFocus += new EventHandler(control_LostFocus);
+            control.GotFocus += this.control_LostFocus;
         }
 
         

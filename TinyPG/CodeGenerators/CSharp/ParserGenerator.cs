@@ -12,24 +12,23 @@ namespace TinyPG.CodeGenerators.CSharp
         {
         }
 
-        public string Generate(Grammar Grammar, bool Debug)
+        public string Generate(Grammar grammar, bool debug)
         {
-            if (string.IsNullOrEmpty(Grammar.GetTemplatePath()))
+            if (string.IsNullOrEmpty(grammar.GetTemplatePath()))
                 return null;
 
             // generate the parser file
             StringBuilder parsers = new StringBuilder();
-            string parser = File.ReadAllText(Grammar.GetTemplatePath() + templateName);
+            string parser = File.ReadAllText(grammar.GetTemplatePath() + this.templateName);
 
             // build non terminal tokens
-            foreach (NonTerminalSymbol s in Grammar.GetNonTerminals())
+            foreach (NonTerminalSymbol s in grammar.GetNonTerminals())
             {
-                string method = GenerateParseMethod(s);
+                string method = this.GenerateParseMethod(s);
                 parsers.Append(method);
             }
 
-
-            if (Debug)
+            if (debug)
             {
                 parser = parser.Replace(@"<%Namespace%>", "TinyPG.Debug");
                 parser = parser.Replace(@"<%IParser%>", " : TinyPG.Debug.IParser");
@@ -38,7 +37,7 @@ namespace TinyPG.CodeGenerators.CSharp
             }
             else
             {
-                parser = parser.Replace(@"<%Namespace%>", Grammar.Directives["TinyPG"]["Namespace"]);
+                parser = parser.Replace(@"<%Namespace%>", grammar.Directives["TinyPG"]["Namespace"]);
                 parser = parser.Replace(@"<%IParser%>", "");
                 parser = parser.Replace(@"<%IParseTree%>", "ParseTree");
             }
@@ -50,8 +49,7 @@ namespace TinyPG.CodeGenerators.CSharp
         // generates the method header and body
         private string GenerateParseMethod(NonTerminalSymbol s)
         {
-
-            StringBuilder sb = new StringBuilder();
+            var sb = new StringBuilder();
             sb.AppendLine("        private void Parse" + s.Name + "(ParseNode parent)" + Helper.AddComment("NonTerminalSymbol: " + s.Name));
             sb.AppendLine("        {");
             sb.AppendLine("            Token tok;");
@@ -62,7 +60,7 @@ namespace TinyPG.CodeGenerators.CSharp
 
             foreach (Rule rule in s.Rules)
             {
-                sb.AppendLine(GenerateProductionRuleCode(s.Rules[0], 3));
+                sb.AppendLine(this.GenerateProductionRuleCode(s.Rules[0], 3));
             }
 
             sb.AppendLine("            parent.Token.UpdateRange(node.Token);");
@@ -74,8 +72,12 @@ namespace TinyPG.CodeGenerators.CSharp
         // generates the rule logic inside the method body
         private string GenerateProductionRuleCode(Rule r, int indent)
         {
+            if (r.Symbol == null)
+            {
+                return string.Empty;
+            }
+
             int i = 0;
-            Symbols firsts = null;
             StringBuilder sb = new StringBuilder();
             string Indent = IndentTabs(indent);
 
@@ -100,14 +102,14 @@ namespace TinyPG.CodeGenerators.CSharp
                     {
                         sb.AppendLine();
                         sb.AppendLine(Indent + Helper.AddComment("Concat Rule"));
-                        sb.Append(GenerateProductionRuleCode(rule, indent));
+                        sb.Append(this.GenerateProductionRuleCode(rule, indent));
                     }
                     break;
                 case RuleType.ZeroOrMore:
-                    firsts = r.GetFirstTerminals();
+                    var firsts = r.GetFirstTerminals();
                     i = 0;
                     sb.Append(Indent + "tok = scanner.LookAhead(");
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append("TokenType." + s.Name);
@@ -118,7 +120,7 @@ namespace TinyPG.CodeGenerators.CSharp
                     sb.AppendLine(");" + Helper.AddComment("ZeroOrMore Rule"));
 
                     i = 0;
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append(Indent + "while (tok.Type == TokenType." + s.Name);
@@ -131,12 +133,12 @@ namespace TinyPG.CodeGenerators.CSharp
 
                     foreach (Rule rule in r.Rules)
                     {
-                        sb.Append(GenerateProductionRuleCode(rule, indent + 1));
+                        sb.Append(this.GenerateProductionRuleCode(rule, indent + 1));
                     }
 
                     i = 0;
                     sb.Append(Indent + "tok = scanner.LookAhead(");
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append("TokenType." + s.Name);
@@ -152,13 +154,13 @@ namespace TinyPG.CodeGenerators.CSharp
 
                     foreach (Rule rule in r.Rules)
                     {
-                        sb.Append(GenerateProductionRuleCode(rule, indent + 1));
+                        sb.Append(this.GenerateProductionRuleCode(rule, indent + 1));
                     }
 
                     i = 0;
                     firsts = r.GetFirstTerminals();
                     sb.Append(Indent + "    tok = scanner.LookAhead(");
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append("TokenType." + s.Name);
@@ -169,7 +171,7 @@ namespace TinyPG.CodeGenerators.CSharp
                     sb.AppendLine(");" + Helper.AddComment("OneOrMore Rule"));
 
                     i = 0;
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append(Indent + "} while (tok.Type == TokenType." + s.Name);
@@ -183,7 +185,7 @@ namespace TinyPG.CodeGenerators.CSharp
                     i = 0;
                     firsts = r.GetFirstTerminals();
                     sb.Append(Indent + "tok = scanner.LookAhead(");
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append("TokenType." + s.Name);
@@ -194,7 +196,7 @@ namespace TinyPG.CodeGenerators.CSharp
                     sb.AppendLine(");" + Helper.AddComment("Option Rule"));
 
                     i = 0;
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append(Indent + "if (tok.Type == TokenType." + s.Name);
@@ -207,7 +209,7 @@ namespace TinyPG.CodeGenerators.CSharp
 
                     foreach (Rule rule in r.Rules)
                     {
-                        sb.Append(GenerateProductionRuleCode(rule, indent + 1));
+                        sb.Append(this.GenerateProductionRuleCode(rule, indent + 1));
                     }
                     sb.AppendLine(Indent + "}");
                     break;
@@ -216,7 +218,7 @@ namespace TinyPG.CodeGenerators.CSharp
                     firsts = r.GetFirstTerminals();
                     sb.Append(Indent + "tok = scanner.LookAhead(");
                     var tokens = new List<string>();
-                    foreach (TerminalSymbol s in firsts)
+                    foreach (var s in firsts)
                     {
                         if (i == 0)
                             sb.Append("TokenType." + s.Name);
@@ -242,19 +244,17 @@ namespace TinyPG.CodeGenerators.CSharp
                     sb.AppendLine(Indent + "{" + Helper.AddComment("Choice Rule"));
                     foreach (Rule rule in r.Rules)
                     {
-                        foreach (TerminalSymbol s in rule.GetFirstTerminals())
+                        foreach (var s in rule.GetFirstTerminals())
                         {
                             sb.AppendLine(Indent + "    case TokenType." + s.Name + ":");
                         }
-                        sb.Append(GenerateProductionRuleCode(rule, indent + 2));
+                        sb.Append(this.GenerateProductionRuleCode(rule, indent + 2));
                         sb.AppendLine(Indent + "        break;");
                     }
                     sb.AppendLine(Indent + "    default:");
                     sb.AppendLine(Indent + "        tree.Errors.Add(new ParseError(\"Unexpected token '\" + tok.Text.Replace(\"\\n\", \"\") + \"' found. Expected " + expectedTokens + ".\", 0x0002, tok));");
                     sb.AppendLine(Indent + "        break;");
                     sb.AppendLine(Indent + "}" + Helper.AddComment("Choice Rule"));
-                    break;
-                default:
                     break;
             }
             return sb.ToString();

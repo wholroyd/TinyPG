@@ -7,61 +7,14 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.Windows.Forms;
-using System.Drawing;
-using System.ComponentModel;
-using System.Runtime.InteropServices;
 
-namespace TinyPG.Controls
+namespace TinyPG.Controls.DockExtender
 {
-    /// <summary>
-    /// this is the publicly exposed interface of the floating window (floaty)
-    /// add more methods/properties here for your own needs, so these are exposed to the client
-    /// the main goal is to keep the floaty form internal
-    /// </summary>
-    public interface IFloaty
-    {
-        /// <summary>
-        /// show the floaty 
-        /// </summary>
-        void Show();
-
-        /// <summary>
-        /// hide the floaty
-        /// </summary>
-        void Hide();
-
-        /// <summary>
-        /// dock the floaty (works only if it is floating)
-        /// </summary>
-        void Dock();
-
-        /// <summary>
-        /// float the floaty (works only if it is docked)
-        /// </summary>
-        void Float();
-
-        /// <summary>
-        /// set a caption for the floaty
-        /// </summary>
-        String Text {get; set; }
-
-        /// <summary>
-        /// indicates if a floaty may dock only on the host docking control (e.g. the form)
-        /// and not inside other floaties
-        /// </summary>
-        bool DockOnHostOnly { get; set; }
-
-        /// <summary>
-        /// indicates if a floaty may dock on the inside or on the outside of a form/control
-        /// default is true
-        /// </summary>
-        bool DockOnInside { get; set; }
-
-        event EventHandler Docking;
-    }
+    using System;
+    using System.ComponentModel;
+    using System.Drawing;
+    using System.Runtime.InteropServices;
+    using System.Windows.Forms;
 
     /// <summary>
     /// this class contains basically all the logic for making a control floating and dockable
@@ -112,8 +65,8 @@ namespace TinyPG.Controls
         /// <param name="DockExtender">requires the DockExtender</param>
         public Floaty(DockExtender DockExtender)
         {
-            _dockExtender = DockExtender;
-            InitializeComponent();
+            this._dockExtender = DockExtender;
+            this.InitializeComponent();
         }
 
         private void InitializeComponent()
@@ -122,13 +75,13 @@ namespace TinyPG.Controls
             // 
             // Floaty
             // 
-            this.ClientSize = new System.Drawing.Size(178, 122);
-            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.SizableToolWindow;
+            this.ClientSize = new Size(178, 122);
+            this.FormBorderStyle = FormBorderStyle.SizableToolWindow;
             this.MaximizeBox = false;
             this.Name = "Floaty";
             this.ShowIcon = false;
             this.ShowInTaskbar = false;
-            this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
+            this.StartPosition = FormStartPosition.Manual;
             this.ResumeLayout(false);
             this._dockOnInside = true;
             this._dockOnHostOnly = true; // keep it simple for now
@@ -139,19 +92,19 @@ namespace TinyPG.Controls
         #region properties
         internal DockState DockState 
         {
-            get { return _dockState; }
+            get { return this._dockState; }
         }
 
         public bool DockOnHostOnly
         {
-            get { return _dockOnHostOnly; }
-            set { _dockOnHostOnly = value; }
+            get { return this._dockOnHostOnly; }
+            set { this._dockOnHostOnly = value; }
         }
 
         public bool DockOnInside
         {
-            get { return _dockOnInside; }
-            set { _dockOnInside = value; }
+            get { return this._dockOnInside; }
+            set { this._dockOnInside = value; }
         }
         
         #endregion properties
@@ -161,7 +114,7 @@ namespace TinyPG.Controls
         {
             if (m.Msg == WM_NCLBUTTONDBLCLK) // doubleclicked on border, so reset.
             {
-                DockFloaty();
+                this.DockFloaty();
             }
             base.WndProc(ref m);
         }
@@ -180,36 +133,36 @@ namespace TinyPG.Controls
         protected override void OnResizeEnd(EventArgs e)
         {
             
-            if (_dockExtender.Overlay.Visible == true && _dockExtender.Overlay.DockHostControl != null) //ok found new docking position
+            if (this._dockExtender.Overlay.Visible && this._dockExtender.Overlay.DockHostControl != null) //ok found new docking position
             {
-                _dockState.OrgDockingParent = _dockExtender.Overlay.DockHostControl;
-                _dockState.OrgBounds = _dockState.Container.RectangleToClient(_dockExtender.Overlay.Bounds);
-                _dockState.OrgDockStyle = _dockExtender.Overlay.Dock;
-                _dockExtender.Overlay.Hide();
-                DockFloaty(); // dock the container
+                this._dockState.OrgDockingParent = this._dockExtender.Overlay.DockHostControl;
+                this._dockState.OrgBounds = this._dockState.Container.RectangleToClient(this._dockExtender.Overlay.Bounds);
+                this._dockState.OrgDockStyle = this._dockExtender.Overlay.Dock;
+                this._dockExtender.Overlay.Hide();
+                this.DockFloaty(); // dock the container
             }
-            _dockExtender.Overlay.DockHostControl = null;
-            _dockExtender.Overlay.Hide();
+            this._dockExtender.Overlay.DockHostControl = null;
+            this._dockExtender.Overlay.Hide();
             base.OnResizeEnd(e);
         }
 
         protected override void OnMove(EventArgs e)
         {
-            if (IsDisposed) return;
+            if (this.IsDisposed) return;
 
             Point pt = Cursor.Position;
-            Point pc = PointToClient(pt);
+            Point pc = this.PointToClient(pt);
             if (pc.Y < -21 || pc.Y > 0) return;
-            if (pc.X < -1 || pc.X > Width) return;
+            if (pc.X < -1 || pc.X > this.Width) return;
 
-            Control t = _dockExtender.FindDockHost(this, pt);
+            Control t = this._dockExtender.FindDockHost(this, pt);
             if (t == null) 
             {
-                _dockExtender.Overlay.Hide();
+                this._dockExtender.Overlay.Hide();
             }
             else
             {
-                SetOverlay(t, pt);
+                this.SetOverlay(t, pt);
             }
             base.OnMove(e);
         }
@@ -227,13 +180,13 @@ namespace TinyPG.Controls
         // override base method, this control only allows one way of showing.
         public new void Show()
         {
-            if (!this.Visible && _isFloating)
-                base.Show(_dockState.OrgDockHost);
+            if (!this.Visible && this._isFloating)
+                base.Show(this._dockState.OrgDockHost);
 
-            _dockState.Container.Show();
+            this._dockState.Container.Show();
 
-            if (_dockState.Splitter != null)
-                _dockState.Splitter.Show();
+            if (this._dockState.Splitter != null)
+                this._dockState.Splitter.Show();
         }
 
         public new void Hide()
@@ -241,32 +194,32 @@ namespace TinyPG.Controls
             if (this.Visible)
                 base.Hide();
 
-            _dockState.Container.Hide();
-            if (_dockState.Splitter != null)
-                _dockState.Splitter.Hide();
+            this._dockState.Container.Hide();
+            if (this._dockState.Splitter != null)
+                this._dockState.Splitter.Hide();
         }
 
         // this this member
         public new void Show(IWin32Window win)
         {
-            Show();
+            this.Show();
         }
 
         public new void Dock()
         {
-            if (!_isFloating) return;
-            DockFloaty();
+            if (!this._isFloating) return;
+            this.DockFloaty();
 
         }
 
         public void Float()
         {
-            if (_isFloating) return;
-            Text = _dockState.Handle.Text;
+            if (this._isFloating) return;
+            this.Text = this._dockState.Handle.Text;
 
-            Point pt = _dockState.Container.PointToScreen(new Point(0,0));
-            Size sz = _dockState.Container.Size;
-            if (_dockState.Container.Equals(_dockState.Handle))
+            Point pt = this._dockState.Container.PointToScreen(new Point(0,0));
+            Size sz = this._dockState.Container.Size;
+            if (this._dockState.Container.Equals(this._dockState.Handle))
             {
                 sz.Width += 18;
                 sz.Height += 28;
@@ -274,21 +227,21 @@ namespace TinyPG.Controls
             if (sz.Width > 600) sz.Width = 600;
             if (sz.Height > 600) sz.Height = 600;
 
-            _dockState.OrgDockingParent = _dockState.Container.Parent;
-            _dockState.OrgBounds = _dockState.Container.Bounds;
-            _dockState.OrgDockStyle = _dockState.Container.Dock;
-            _dockState.Handle.Hide();
-            _dockState.Container.Parent = this;
-            _dockState.Container.Dock = DockStyle.Fill;
+            this._dockState.OrgDockingParent = this._dockState.Container.Parent;
+            this._dockState.OrgBounds = this._dockState.Container.Bounds;
+            this._dockState.OrgDockStyle = this._dockState.Container.Dock;
+            this._dockState.Handle.Hide();
+            this._dockState.Container.Parent = this;
+            this._dockState.Container.Dock = DockStyle.Fill;
 
-            if (_dockState.Splitter != null)
+            if (this._dockState.Splitter != null)
             {
-                _dockState.Splitter.Visible = false; // hide splitter
-                _dockState.Splitter.Parent = this;
+                this._dockState.Splitter.Visible = false; // hide splitter
+                this._dockState.Splitter.Parent = this;
             }
             this.Bounds = new Rectangle(pt, sz);
-            _isFloating = true;
-            Show();
+            this._isFloating = true;
+            this.Show();
         }
 
 
@@ -314,7 +267,7 @@ namespace TinyPG.Controls
             r.X += borderwidth;
             r.Y += (r.Height - rc.Height) - borderwidth;
 
-            if (!_dockOnInside)
+            if (!this._dockOnInside)
             {
                 rc.X += r.X;
                 rc.Y += r.Y;
@@ -361,7 +314,7 @@ namespace TinyPG.Controls
         private void SetOverlay(Control c, Point pc)
         {
 
-            Rectangle r = GetDockingArea(c);
+            Rectangle r = this.GetDockingArea(c);
             Rectangle rc = r;
 
             //determine relative coordinates
@@ -370,7 +323,7 @@ namespace TinyPG.Controls
 
             //Console.WriteLine("Moving over " + c.Name + " " +  rx.ToString() + "," + ry.ToString());
 
-            _dockExtender.Overlay.Dock = DockStyle.None; // keep floating
+            this._dockExtender.Overlay.Dock = DockStyle.None; // keep floating
 
             // this section determines when the overlay is to be displayed.
             // it depends on the position of the mouse cursor on the client area.
@@ -386,7 +339,7 @@ namespace TinyPG.Controls
                 if (r.Width > this.Width)
                     r.Width = this.Width;
 
-                _dockExtender.Overlay.Dock = DockStyle.Left; // dock to left
+                this._dockExtender.Overlay.Dock = DockStyle.Left; // dock to left
             }
 
             // dock to the right, checks the Easter area
@@ -396,7 +349,7 @@ namespace TinyPG.Controls
                 if (r.Width > this.Width)
                     r.Width = this.Width;
                 r.X = rc.X + rc.Width - r.Width;
-                _dockExtender.Overlay.Dock = DockStyle.Right;
+                this._dockExtender.Overlay.Dock = DockStyle.Right;
             }
 
             // dock to top, checks the Northern area
@@ -405,7 +358,7 @@ namespace TinyPG.Controls
                 r.Height = r.Height / 2;
                 if (r.Height > this.Height)
                     r.Height = this.Height;
-                _dockExtender.Overlay.Dock = DockStyle.Top;
+                this._dockExtender.Overlay.Dock = DockStyle.Top;
             }
 
             // dock to the bottom, checks the Southern area
@@ -415,29 +368,29 @@ namespace TinyPG.Controls
                 if (r.Height > this.Height)
                     r.Height = this.Height;
                 r.Y = rc.Y + rc.Height - r.Height;
-                _dockExtender.Overlay.Dock = DockStyle.Bottom;
+                this._dockExtender.Overlay.Dock = DockStyle.Bottom;
             }
-            if (_dockExtender.Overlay.Dock != DockStyle.None)
-                _dockExtender.Overlay.Bounds = r;
+            if (this._dockExtender.Overlay.Dock != DockStyle.None)
+                this._dockExtender.Overlay.Bounds = r;
             else
-                _dockExtender.Overlay.Hide();
+                this._dockExtender.Overlay.Hide();
 
-            if (!_dockExtender.Overlay.Visible && _dockExtender.Overlay.Dock != DockStyle.None)
+            if (!this._dockExtender.Overlay.Visible && this._dockExtender.Overlay.Dock != DockStyle.None)
             {
-                _dockExtender.Overlay.DockHostControl = c;
-                _dockExtender.Overlay.Show(_dockState.OrgDockHost);
-                BringToFront();
+                this._dockExtender.Overlay.DockHostControl = c;
+                this._dockExtender.Overlay.Show(this._dockState.OrgDockHost);
+                this.BringToFront();
             }
         }
 
         internal void Attach(DockState dockState)
         {
             // track the handle's mouse movements
-            _dockState = dockState;
-            Text = _dockState.Handle.Text;
-            _dockState.Handle.MouseMove += new MouseEventHandler(Handle_MouseMove);
-            _dockState.Handle.MouseHover += new EventHandler(Handle_MouseHover);
-            _dockState.Handle.MouseLeave += new EventHandler(Handle_MouseLeave);
+            this._dockState = dockState;
+            this.Text = this._dockState.Handle.Text;
+            this._dockState.Handle.MouseMove += this.Handle_MouseMove;
+            this._dockState.Handle.MouseHover += this.Handle_MouseHover;
+            this._dockState.Handle.MouseLeave += this.Handle_MouseLeave;
         }
 
         /// <summary>
@@ -449,11 +402,11 @@ namespace TinyPG.Controls
         private void MakeFloatable(DockState dockState, int offsetx, int offsety)
         {
             Point ps = Cursor.Position;
-            _dockState = dockState;
-            Text = _dockState.Handle.Text;
+            this._dockState = dockState;
+            this.Text = this._dockState.Handle.Text;
 
-            Size sz = _dockState.Container.Size;
-            if (_dockState.Container.Equals(_dockState.Handle))
+            Size sz = this._dockState.Container.Size;
+            if (this._dockState.Container.Equals(this._dockState.Handle))
             {
                 sz.Width += 18;
                 sz.Height += 28;
@@ -463,33 +416,33 @@ namespace TinyPG.Controls
 
 
 
-            _dockState.OrgDockingParent = _dockState.Container.Parent;
-            _dockState.OrgBounds = _dockState.Container.Bounds;
-            _dockState.OrgDockStyle = _dockState.Container.Dock;
+            this._dockState.OrgDockingParent = this._dockState.Container.Parent;
+            this._dockState.OrgBounds = this._dockState.Container.Bounds;
+            this._dockState.OrgDockStyle = this._dockState.Container.Dock;
             //_dockState.OrgDockingParent.Controls.Remove(_dockState.Container);
             //Controls.Add(_dockState.Container);
-            _dockState.Handle.Hide();
-            _dockState.Container.Parent = this;
-            _dockState.Container.Dock = DockStyle.Fill;
+            this._dockState.Handle.Hide();
+            this._dockState.Container.Parent = this;
+            this._dockState.Container.Dock = DockStyle.Fill;
             //_dockState.Handle.Visible = false; // hide it for now
-            if (_dockState.Splitter != null)
+            if (this._dockState.Splitter != null)
             {
-                _dockState.Splitter.Visible = false; // hide splitter
-                _dockState.Splitter.Parent = this;
+                this._dockState.Splitter.Visible = false; // hide splitter
+                this._dockState.Splitter.Parent = this;
             }
             // allow redraw of floaty and container
             //Application.DoEvents();  
 
             // this is kind of tricky
             // disable the mousemove events of the handle
-            SendMessage(_dockState.Handle.Handle.ToInt32(), WM_LBUTTONUP, 0, 0);
+            SendMessage(this._dockState.Handle.Handle.ToInt32(), WM_LBUTTONUP, 0, 0);
             ps.X -= offsetx;
             ps.Y -= offsety;
 
 
             this.Bounds = new Rectangle(ps, sz);
-            _isFloating = true;
-            Show();
+            this._isFloating = true;
+            this.Show();
             // enable the mousemove events of the new floating form, start dragging the form immediately
             
             SendMessage(this.Handle.ToInt32(), WM_SYSCOMMAND, SC_MOVE | 0x02, 0);
@@ -501,47 +454,47 @@ namespace TinyPG.Controls
         private void DockFloaty()
         {
             // bring dockhost to front first to prevent flickering
-            _dockState.OrgDockHost.TopLevelControl.BringToFront();
+            this._dockState.OrgDockHost.TopLevelControl.BringToFront();
             this.Hide();
-            _dockState.Container.Visible = false; // hide it temporarely
-            _dockState.Container.Parent = _dockState.OrgDockingParent;
-            _dockState.Container.Dock = _dockState.OrgDockStyle;
-            _dockState.Container.Bounds = _dockState.OrgBounds;
-            _dockState.Handle.Visible = true; // show handle again
-            _dockState.Container.Visible = true; // it's good, show it
+            this._dockState.Container.Visible = false; // hide it temporarely
+            this._dockState.Container.Parent = this._dockState.OrgDockingParent;
+            this._dockState.Container.Dock = this._dockState.OrgDockStyle;
+            this._dockState.Container.Bounds = this._dockState.OrgBounds;
+            this._dockState.Handle.Visible = true; // show handle again
+            this._dockState.Container.Visible = true; // it's good, show it
 
-            if (_dockOnInside)
-                _dockState.Container.BringToFront(); // set to front
+            if (this._dockOnInside)
+                this._dockState.Container.BringToFront(); // set to front
 
             //show splitter
-            if (_dockState.Splitter != null && _dockState.OrgDockStyle != DockStyle.Fill && _dockState.OrgDockStyle != DockStyle.None)
+            if (this._dockState.Splitter != null && this._dockState.OrgDockStyle != DockStyle.Fill && this._dockState.OrgDockStyle != DockStyle.None)
             {
-                _dockState.Splitter.Parent = _dockState.OrgDockingParent;
-                _dockState.Splitter.Dock = _dockState.OrgDockStyle;
-                _dockState.Splitter.Visible = true; // show splitter
+                this._dockState.Splitter.Parent = this._dockState.OrgDockingParent;
+                this._dockState.Splitter.Dock = this._dockState.OrgDockStyle;
+                this._dockState.Splitter.Visible = true; // show splitter
 
-                if (_dockOnInside)
-                    _dockState.Splitter.BringToFront();
+                if (this._dockOnInside)
+                    this._dockState.Splitter.BringToFront();
                 else
-                    _dockState.Splitter.SendToBack();
+                    this._dockState.Splitter.SendToBack();
             }
 
-            if (!_dockOnInside)
-                _dockState.Container.SendToBack(); // set to back
+            if (!this._dockOnInside)
+                this._dockState.Container.SendToBack(); // set to back
 
-            _isFloating = false;
+            this._isFloating = false;
 
-            if (Docking != null)
-                Docking.Invoke(this, new EventArgs());
+            if (this.Docking != null)
+                this.Docking.Invoke(this, new EventArgs());
         }
 
         private void DetachHandle()
         {
-            _dockState.Handle.MouseMove -= new MouseEventHandler(Handle_MouseMove);
-            _dockState.Handle.MouseHover -= new EventHandler(Handle_MouseHover);
-            _dockState.Handle.MouseLeave -= new EventHandler(Handle_MouseLeave);
-            _dockState.Container = null;
-            _dockState.Handle = null;
+            this._dockState.Handle.MouseMove -= this.Handle_MouseMove;
+            this._dockState.Handle.MouseHover -= this.Handle_MouseHover;
+            this._dockState.Handle.MouseLeave -= this.Handle_MouseLeave;
+            this._dockState.Container = null;
+            this._dockState.Handle = null;
         }
 
         #endregion helper functions
@@ -549,20 +502,20 @@ namespace TinyPG.Controls
         #region Container Handle tracking methods
         void Handle_MouseHover(object sender, EventArgs e)
         {
-            _startFloating = true;
+            this._startFloating = true;
         }
 
         void Handle_MouseLeave(object sender, EventArgs e)
         {
-            _startFloating = false;
+            this._startFloating = false;
         }
 
         void Handle_MouseMove(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Left && _startFloating)
+            if (e.Button == MouseButtons.Left && this._startFloating)
             {
-                Point ps = _dockState.Handle.PointToScreen(new Point(e.X, e.Y));
-                MakeFloatable(_dockState, e.X, e.Y);
+                Point ps = this._dockState.Handle.PointToScreen(new Point(e.X, e.Y));
+                this.MakeFloatable(this._dockState, e.X, e.Y);
             }
         }
         #endregion Container Handle tracking methods
@@ -570,25 +523,8 @@ namespace TinyPG.Controls
 
         #region events
 
-        public event EventHandler Docking = null;
+        public event EventHandler Docking;
 
         #endregion
     }
-
-    /// <summary>
-    /// define a Floaty collection used for enumerating all defined floaties
-    /// </summary>
-    public class Floaties : List<IFloaty>
-    {
-        public IFloaty Find(Control container)
-        {
-            foreach (Floaty f in this)
-            {
-                if (f.DockState.Container.Equals(container))
-                    return f;
-            }
-            return null;
-        }
-    }
-
 }

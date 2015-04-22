@@ -6,12 +6,6 @@ using System.CodeDom.Compiler;
 
 namespace TinyPG.CodeGenerators
 {
-    public enum SupportedLanguage
-    {
-        CSharp = 0, // default
-        VBNet = 1,
-    }
-
     public static class CodeGeneratorFactory
     {
         public static SupportedLanguage GetSupportedLanguage(string language)

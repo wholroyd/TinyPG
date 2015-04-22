@@ -7,12 +7,9 @@
 // EXPRESS OR IMPLIED. USE IT AT YOUR OWN RISK. THE AUTHOR ACCEPTS NO
 // LIABILITY FOR ANY DATA DAMAGE/LOSS THAT THIS PRODUCT MAY CAUSE.
 //-----------------------------------------------------------------------
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 // extends the System.Text namespace
-namespace System.Text
+namespace TinyPG.Compiler
 {
     /// <summary>
     /// some handy to use static helper functions
